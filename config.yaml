@@ -1,0 +1,45 @@
+app:
+  db_path: "digikala_monitor.db"
+  poll_interval_seconds: 900
+  request_timeout_seconds: 20
+  min_delay_between_requests_seconds: 2
+  max_delay_between_requests_seconds: 7
+
+notifications:
+  console:
+    enabled: true
+
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+
+  sms:
+    enabled: false
+    provider: "kavenegar"
+    api_key: ""
+    sender: ""
+    receptor: ""
+
+web:
+  host: "127.0.0.1"
+  port: 8000
+
+defaults:
+  conditions:
+    notify_when_available: true
+    notify_when_unavailable: true
+    max_price_toman: null
+    min_discount_percent: null
+    only_digikala_seller: false
+    seller_names_include: []
+    seller_names_exclude: []
+    notify_on_any_price_change: false
+    notify_on_price_drop_percent: null
+    notify_on_seller_change: true
+    notify_on_new_seller: true
+    notify_on_removed_seller: true
+    notify_on_discount_change: true
+    min_stock_count: null
+    allowed_warranties: []
+    blocked_warranties: []

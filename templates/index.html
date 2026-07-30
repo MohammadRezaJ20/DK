@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>Digikala Monitor</title>
+  <style>
+    body { font-family: sans-serif; direction: rtl; margin: 30px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
+    th { background: #f3f3f3; }
+  </style>
+</head>
+<body>
+  <h1>داشبورد پایش دیجیکالا</h1>
+  <table>
+    <tr>
+      <th>شناسه</th>
+      <th>نام</th>
+      <th>قیمت</th>
+      <th>فروشنده</th>
+      <th>وضعیت</th>
+      <th>آخرین بررسی</th>
+      <th>جزئیات</th>
+    </tr>
+    {% for p in products %}
+    <tr>
+      <td>{{ p["product_id"] }}</td>
+      <td>{{ p["title"] or p["custom_name"] }}</td>
+      <td>{{ p["best_price_toman"] }}</td>
+      <td>{{ p["best_seller_name"] }}</td>
+      <td>{{ "موجود" if p["is_available"] == 1 else "ناموجود" }}</td>
+      <td>{{ p["checked_at"] }}</td>
+      <td><a href="/product/{{ p['product_id'] }}">نمایش</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

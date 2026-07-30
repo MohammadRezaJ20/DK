@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ product["title"] }}</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; direction: rtl; margin: 30px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
+    th { background: #f3f3f3; }
+  </style>
+</head>
+<body>
+  <h1>{{ product["title"] }}</h1>
+  <p>شناسه: {{ product["product_id"] }}</p>
+  <p>برند: {{ product["brand"] }}</p>
+  <p>دسته‌بندی: {{ product["category"] }}</p>
+  <p><a href="{{ product['url'] }}" target="_blank">لینک محصول</a></p>
+
+  <h2>نمودار قیمت</h2>
+  <canvas id="priceChart" height="120"></canvas>
+
+  <h2>تاریخچه</h2>
+  <table>
+    <tr>
+      <th>زمان</th>
+      <th>قیمت</th>
+      <th>فروشنده</th>
+      <th>تخفیف</th>
+      <th>وضعیت</th>
+    </tr>
+    {% for row in history %}
+    <tr>
+      <td>{{ row["checked_at"] }}</td>
+      <td>{{ row["best_price_toman"] }}</td>
+      <td>{{ row["best_seller_name"] }}</td>
+      <td>{{ row["best_discount_percent"] }}</td>
+      <td>{{ "موجود" if row["is_available"] == 1 else "ناموجود" }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h2>آخرین اعلان‌ها</h2>
+  <table>
+    <tr>
+      <th>زمان</th>
+      <th>عنوان</th>
+      <th>پیام</th>
+    </tr>
+    {% for n in notifications %}
+    <tr>
+      <td>{{ n["created_at"] }}</td>
+      <td>{{ n["title"] }}</td>
+      <td><pre>{{ n["message"] }}</pre></td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h2>آخرین وضعیت فروشنده‌ها</h2>
+  <table>
+    <tr>
+      <th>زمان</th>
+      <th>فروشنده</th>
+      <th>قیمت</th>
+      <th>تخفیف</th>
+      <th>وضعیت</th>
+      <th>گارانتی</th>
+    </tr>
+    {% for s in seller_rows %}
+    <tr>
+      <td>{{ s["checked_at"] }}</td>
+      <td>{{ s["seller_name"] }}</td>
+      <td>{{ s["price_toman"] }}</td>
+      <td>{{ s["discount_percent"] }}</td>
+      <td>{{ "موجود" if s["is_available"] == 1 else "ناموجود" }}</td>
+      <td>{{ s["warranty_name"] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <script>
+    const labels = [
+      {% for row in history %}
+        "{{ row['checked_at'] }}",
+      {% endfor %}
+    ];
+
+    const data = [
+      {% for row in history %}
+        {{ row["best_price_toman"] if row["best_price_toman"] is not none else "null" }},
+      {% endfor %}
+    ];
+
+    new Chart(document.getElementById('priceChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'قیمت (تومان)',
+          data: data,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true
+      }
+    });
+  </script>
+</body>
+</html>
