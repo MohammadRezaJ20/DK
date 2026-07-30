@@ -1,109 +1,326 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>{{ product["title"] }}</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ product["title"] or product["custom_name"] or "جزئیات محصول" }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: sans-serif; direction: rtl; margin: 30px; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
-    th { background: #f3f3f3; }
+    body {
+      font-family: Tahoma, IRANSans, sans-serif;
+    }
   </style>
 </head>
-<body>
-  <h1>{{ product["title"] }}</h1>
-  <p>شناسه: {{ product["product_id"] }}</p>
-  <p>برند: {{ product["brand"] }}</p>
-  <p>دسته‌بندی: {{ product["category"] }}</p>
-  <p><a href="{{ product['url'] }}" target="_blank">لینک محصول</a></p>
+<body class="bg-slate-50 text-slate-800">
+  <div class="min-h-screen">
+    <header class="border-b border-slate-200 bg-white sticky top-0 z-20">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div class="flex items-center gap-3 flex-wrap">
+            <a href="/" class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+              بازگشت
+            </a>
+            <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+              Product ID: {{ product["product_id"] }}
+            </span>
+            {% if product["active"] == 1 %}
+              <span class="inline-flex rounded-full bg-emerald-100 text-emerald-700 px-3 py-1 text-xs font-semibold">فعال</span>
+            {% else %}
+              <span class="inline-flex rounded-full bg-slate-200 text-slate-700 px-3 py-1 text-xs font-semibold">غیرفعال</span>
+            {% endif %}
+          </div>
+          <h1 class="text-2xl lg:text-3xl font-extrabold text-slate-900 mt-4">
+            {{ product["title"] or product["custom_name"] or "بدون عنوان" }}
+          </h1>
+          <p class="text-sm text-slate-500 mt-2">
+            {{ product["brand"] or "-" }} | {{ product["category"] or "-" }}
+          </p>
+        </div>
 
-  <h2>نمودار قیمت</h2>
-  <canvas id="priceChart" height="120"></canvas>
+        <div class="flex flex-wrap gap-3">
+          <a href="/product/{{ product['product_id'] }}/edit" class="inline-flex items-center rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white hover:bg-amber-600">
+            ویرایش محصول
+          </a>
+          <a href="{{ product['url'] }}" target="_blank" class="inline-flex items-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700">
+            مشاهده در دیجی‌کالا
+          </a>
+        </div>
+      </div>
+    </header>
 
-  <h2>تاریخچه</h2>
-  <table>
-    <tr>
-      <th>زمان</th>
-      <th>قیمت</th>
-      <th>فروشنده</th>
-      <th>تخفیف</th>
-      <th>وضعیت</th>
-    </tr>
-    {% for row in history %}
-    <tr>
-      <td>{{ row["checked_at"] }}</td>
-      <td>{{ row["best_price_toman"] }}</td>
-      <td>{{ row["best_seller_name"] }}</td>
-      <td>{{ row["best_discount_percent"] }}</td>
-      <td>{{ "موجود" if row["is_available"] == 1 else "ناموجود" }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <!-- Summary -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div class="text-sm text-slate-500">نام سفارشی</div>
+          <div class="mt-2 text-lg font-bold text-slate-900">{{ product["custom_name"] or "-" }}</div>
+        </div>
 
-  <h2>آخرین اعلان‌ها</h2>
-  <table>
-    <tr>
-      <th>زمان</th>
-      <th>عنوان</th>
-      <th>پیام</th>
-    </tr>
-    {% for n in notifications %}
-    <tr>
-      <td>{{ n["created_at"] }}</td>
-      <td>{{ n["title"] }}</td>
-      <td><pre>{{ n["message"] }}</pre></td>
-    </tr>
-    {% endfor %}
-  </table>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div class="text-sm text-slate-500">شرایط مانیتورینگ</div>
+          <div class="mt-2 text-lg font-bold text-slate-900">{{ conditions|length }}</div>
+        </div>
 
-  <h2>آخرین وضعیت فروشنده‌ها</h2>
-  <table>
-    <tr>
-      <th>زمان</th>
-      <th>فروشنده</th>
-      <th>قیمت</th>
-      <th>تخفیف</th>
-      <th>وضعیت</th>
-      <th>گارانتی</th>
-    </tr>
-    {% for s in seller_rows %}
-    <tr>
-      <td>{{ s["checked_at"] }}</td>
-      <td>{{ s["seller_name"] }}</td>
-      <td>{{ s["price_toman"] }}</td>
-      <td>{{ s["discount_percent"] }}</td>
-      <td>{{ "موجود" if s["is_available"] == 1 else "ناموجود" }}</td>
-      <td>{{ s["warranty_name"] }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div class="text-sm text-slate-500">تعداد اسنپ‌شات قیمت</div>
+          <div class="mt-2 text-lg font-bold text-slate-900">{{ snapshots|length }}</div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div class="text-sm text-slate-500">تعداد اعلان‌ها</div>
+          <div class="mt-2 text-lg font-bold text-slate-900">{{ notifications|length }}</div>
+        </div>
+      </section>
+
+      <!-- Chart -->
+      <section class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">نمودار تاریخچه قیمت</h2>
+            <p class="text-sm text-slate-500 mt-1">نمایش روند بهترین قیمت ثبت‌شده در هر بررسی</p>
+          </div>
+        </div>
+
+        <div class="h-[340px]">
+          <canvas id="priceChart"></canvas>
+        </div>
+      </section>
+
+      <!-- Conditions -->
+      <section class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
+        <h2 class="text-xl font-bold text-slate-900 mb-4">شرط‌های فعال</h2>
+
+        {% if conditions %}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for key, value in conditions.items() %}
+              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div class="text-xs text-slate-500 mb-2">{{ key }}</div>
+                <div class="text-sm font-medium text-slate-900 break-words">
+                  {% if value is iterable and value is not string %}
+                    {{ value|join(" ، ") }}
+                  {% else %}
+                    {{ value }}
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-sm text-slate-500">هیچ شرطی برای این محصول ثبت نشده است.</div>
+        {% endif %}
+      </section>
+
+      <!-- Snapshot History -->
+      <section class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-200">
+          <h2 class="text-xl font-bold text-slate-900">تاریخچه محصول</h2>
+          <p class="text-sm text-slate-500 mt-1">خلاصه وضعیت محصول در هر snapshot</p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-100 text-slate-700">
+              <tr>
+                <th class="px-4 py-4 text-right font-semibold">زمان بررسی</th>
+                <th class="px-4 py-4 text-right font-semibold">وضعیت</th>
+                <th class="px-4 py-4 text-right font-semibold">موجودی</th>
+                <th class="px-4 py-4 text-right font-semibold">بهترین قیمت</th>
+                <th class="px-4 py-4 text-right font-semibold">بهترین فروشنده</th>
+                <th class="px-4 py-4 text-right font-semibold">تخفیف</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for s in snapshots %}
+              <tr class="hover:bg-slate-50">
+                <td class="px-4 py-4 text-xs text-slate-500">{{ s["checked_at"] }}</td>
+                <td class="px-4 py-4">{{ s["status"] or "-" }}</td>
+                <td class="px-4 py-4">
+                  {% if s["is_available"] == 1 %}
+                    <span class="inline-flex rounded-full bg-emerald-100 text-emerald-700 px-3 py-1 text-xs font-semibold">موجود</span>
+                  {% else %}
+                    <span class="inline-flex rounded-full bg-rose-100 text-rose-700 px-3 py-1 text-xs font-semibold">ناموجود</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-4">
+                  {% if s["best_price_toman"] is not none %}
+                    {{ "{:,}".format(s["best_price_toman"]) }} تومان
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td class="px-4 py-4">{{ s["best_seller_name"] or "-" }}</td>
+                <td class="px-4 py-4">
+                  {% if s["best_discount_percent"] is not none %}
+                    {{ s["best_discount_percent"] }}%
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="6" class="px-4 py-10 text-center text-slate-500">تاریخچه‌ای ثبت نشده است.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Seller Groups -->
+      <section class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-slate-900">تاریخچه فروشندگان</h2>
+          <p class="text-sm text-slate-500 mt-1">گروه‌بندی‌شده بر اساس زمان snapshot</p>
+        </div>
+
+        <div class="space-y-4">
+          {% for group in seller_groups %}
+          <details class="group rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+            <summary class="list-none cursor-pointer p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div>
+                <div class="text-sm text-slate-500">زمان بررسی</div>
+                <div class="text-base font-bold text-slate-900 mt-1">{{ group["checked_at"] }}</div>
+              </div>
+
+              <div class="flex flex-wrap gap-3">
+                <span class="inline-flex rounded-full bg-white border border-slate-200 px-3 py-1 text-xs text-slate-700">
+                  تعداد فروشنده: {{ group["count"] }}
+                </span>
+                <span class="inline-flex rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-semibold">
+                  بهترین قیمت:
+                  {% if group["best_price_toman"] is not none %}
+                    {{ "{:,}".format(group["best_price_toman"]) }} تومان
+                  {% else %}
+                    -
+                  {% endif %}
+                </span>
+              </div>
+            </summary>
+
+            <div class="border-t border-slate-200 bg-white overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-slate-100 text-slate-700">
+                  <tr>
+                    <th class="px-4 py-4 text-right font-semibold">فروشنده</th>
+                    <th class="px-4 py-4 text-right font-semibold">وضعیت</th>
+                    <th class="px-4 py-4 text-right font-semibold">قیمت</th>
+                    <th class="px-4 py-4 text-right font-semibold">تخفیف</th>
+                    <th class="px-4 py-4 text-right font-semibold">امتیاز</th>
+                    <th class="px-4 py-4 text-right font-semibold">گارانتی</th>
+                    <th class="px-4 py-4 text-right font-semibold">زمان ارسال</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  {% for seller in group["items"] %}
+                  <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-4 font-medium text-slate-900">{{ seller["seller_name"] or "-" }}</td>
+                    <td class="px-4 py-4">
+                      {% if seller["is_available"] == 1 %}
+                        <span class="inline-flex rounded-full bg-emerald-100 text-emerald-700 px-3 py-1 text-xs font-semibold">موجود</span>
+                      {% else %}
+                        <span class="inline-flex rounded-full bg-rose-100 text-rose-700 px-3 py-1 text-xs font-semibold">ناموجود</span>
+                      {% endif %}
+                    </td>
+                    <td class="px-4 py-4">
+                      {% if seller["price_toman"] is not none %}
+                        {{ "{:,}".format(seller["price_toman"]) }} تومان
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                    <td class="px-4 py-4">
+                      {% if seller["discount_percent"] is not none %}
+                        {{ seller["discount_percent"] }}%
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                    <td class="px-4 py-4">{{ seller["seller_rating"] or "-" }}</td>
+                    <td class="px-4 py-4">{{ seller["warranty_name"] or "-" }}</td>
+                    <td class="px-4 py-4">{{ seller["lead_time"] or "-" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+          {% else %}
+          <div class="text-sm text-slate-500">تاریخچه‌ای از فروشندگان ثبت نشده است.</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Notifications -->
+      <section class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-200">
+          <h2 class="text-xl font-bold text-slate-900">اعلان‌ها</h2>
+          <p class="text-sm text-slate-500 mt-1">آخرین رویدادهای ثبت‌شده برای این محصول</p>
+        </div>
+
+        <div class="divide-y divide-slate-200">
+          {% for n in notifications %}
+          <div class="p-5">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+              <div>
+                <div class="font-semibold text-slate-900">{{ n["title"] or "-" }}</div>
+                <div class="text-sm text-slate-600 mt-1">{{ n["message"] or "-" }}</div>
+              </div>
+              <div class="text-xs text-slate-500">{{ n["created_at"] }}</div>
+            </div>
+          </div>
+          {% else %}
+          <div class="p-8 text-sm text-slate-500">هیچ اعلانی برای این محصول ثبت نشده است.</div>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script>
-    const labels = [
-      {% for row in history %}
-        "{{ row['checked_at'] }}",
-      {% endfor %}
-    ];
+    const labels = {{ chart_labels|tojson }};
+    const prices = {{ chart_prices|tojson }};
 
-    const data = [
-      {% for row in history %}
-        {{ row["best_price_toman"] if row["best_price_toman"] is not none else "null" }},
-      {% endfor %}
-    ];
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+    gradient.addColorStop(0, 'rgba(79, 70, 229, 0.35)');
+    gradient.addColorStop(1, 'rgba(79, 70, 229, 0.03)');
 
-    new Chart(document.getElementById('priceChart'), {
+    new Chart(ctx, {
       type: 'line',
       data: {
         labels: labels,
         datasets: [{
-          label: 'قیمت (تومان)',
-          data: data,
-          borderWidth: 2
+          label: 'بهترین قیمت (تومان)',
+          data: prices,
+          borderColor: 'rgb(79, 70, 229)',
+          backgroundColor: gradient,
+          fill: true,
+          tension: 0.35,
+          borderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: 'rgb(79, 70, 229)',
         }]
       },
       options: {
-        responsive: true
+        maintainAspectRatio: false,
+        responsive: true,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            display: true
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: false
+          }
+        }
       }
     });
   </script>
