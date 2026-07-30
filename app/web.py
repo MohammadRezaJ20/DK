@@ -7,8 +7,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
-from config import load_config
-from database import get_connection, init_db
+from app.config import load_config
+from app.database import get_connection, init_db
 from run_once import run_single_poll
 
 app = FastAPI()
