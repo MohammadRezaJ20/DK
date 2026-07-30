@@ -157,7 +157,7 @@ def group_seller_snapshots(rows: list[dict]) -> list[dict]:
 @app.on_event("startup")
 def startup() -> None:
     config = get_app_config()
-    conn = get_connection(config["database"]["path"])
+    conn = get_connection(config["database_path"])
     init_db(conn)
     conn.close()
 
@@ -165,7 +165,7 @@ def startup() -> None:
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     config = get_app_config()
-    conn = get_connection(config["database"]["path"])
+    conn = get_connection(config["database_path"])
 
     query = """
     SELECT
@@ -225,7 +225,7 @@ def index(request: Request):
 @app.get("/product/{product_id}", response_class=HTMLResponse)
 def product_detail(request: Request, product_id: int):
     config = get_app_config()
-    conn = get_connection(config["database"]["path"])
+    conn = get_connection(config["database_path"])
 
     product = conn.execute(
         """
@@ -308,7 +308,7 @@ def product_detail(request: Request, product_id: int):
 @app.get("/product/{product_id}/edit", response_class=HTMLResponse)
 def edit_product_page(request: Request, product_id: int):
     config = get_app_config()
-    conn = get_connection(config["database"]["path"])
+    conn = get_connection(config["database_path"])
 
     product = conn.execute(
         """
@@ -398,7 +398,7 @@ def add_product(
         payload = fetch_product(client, product_id)
         snapshot = parse_product(product_id=product_id, url=product_url, payload=payload)
 
-    conn = get_connection(config["database"]["path"])
+    conn = get_connection(config["database_path"])
     upsert_product(
         conn=conn,
         product_id=product_id,
@@ -474,7 +474,7 @@ def edit_product(
             payload=payload,
         )
 
-    conn = get_connection(config["database"]["path"])
+    conn = get_connection(config["database_path"])
 
     upsert_product(
         conn=conn,
@@ -510,7 +510,7 @@ def delete_product(
     config = get_app_config()
     require_api_key(x_api_key, config)
 
-    conn = get_connection(config["database"]["path"])
+    conn = get_connection(config["database_path"])
     conn.execute("DELETE FROM products WHERE product_id = ?", (product_id,))
     conn.commit()
     conn.close()
