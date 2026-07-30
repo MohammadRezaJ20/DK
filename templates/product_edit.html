@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ویرایش محصول</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: Tahoma, IRANSans, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="min-h-screen">
+    <header class="border-b border-slate-200 bg-white">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+          <a href="/" class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+            داشبورد
+          </a>
+          <a href="/product/{{ product['product_id'] }}" class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+            بازگشت به جزئیات
+          </a>
+        </div>
+
+        <h1 class="text-2xl font-extrabold text-slate-900">ویرایش محصول</h1>
+        <p class="text-sm text-slate-500 mt-2">
+          {{ product["title"] or product["custom_name"] or "-" }}
+        </p>
+      </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <form action="/product/{{ product['product_id'] }}/edit" method="post" class="space-y-8">
+        <section class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
+          <h2 class="text-lg font-bold text-slate-900 mb-5">اطلاعات اصلی</h2>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">لینک محصول</label>
+              <input
+                type="url"
+                name="product_url"
+                value="{{ product['url'] }}"
+                required
+                class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">نام سفارشی</label>
+              <input
+                type="text"
+                name="custom_name"
+                value="{{ product['custom_name'] or '' }}"
+                class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div class="mt-5">
+            <label class="flex items-center gap-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                name="active"
+                value="true"
+                {% if product["active"] == 1 %}checked{% endif %}
+                class="rounded border-slate-300"
+              >
+              محصول فعال باشد
+            </label>
+          </div>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
+          <h2 class="text-lg font-bold text-slate-900 mb-5">شرط‌های عددی</h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm text-slate-700 mb-2">حداکثر قیمت (تومان)</label>
+              <input type="number" name="max_price_toman" value="{{ form_data['max_price_toman'] }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+            </div>
+
+            <div>
+              <label class="block text-sm text-slate-700 mb-2">حداقل تخفیف (%)</label>
+              <input type="number" name="min_discount_percent" value="{{ form_data['min_discount_percent'] }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+            </div>
+
+            <div>
+              <label class="block text-sm text-slate-700 mb-2">افت قیمت درصدی</label>
+              <input type="number" name="notify_on_price_drop_percent" value="{{ form_data['notify_on_price_drop_percent'] }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+            </div>
+
+            <div>
+              <label class="block text-sm text-slate-700 mb-2">حداقل تعداد فروشنده موجود</label>
+              <input type="number" name="min_stock_count" value="{{ form_data['min_stock_count'] }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
+          <h2 class="text-lg font-bold text-slate-900 mb-5">فیلتر فروشنده / گارانتی</h2>
+
+          <div class="space-y-5">
+            <label class="flex items-center gap-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                name="only_digikala_seller"
+                value="true"
+                {% if form_data["only_digikala_seller"] %}checked{% endif %}
+                class="rounded border-slate-300"
+              >
+              فقط فروشنده دیجی‌کالا
+            </label>
+
+            <div>
+              <label class="block text-sm text-slate-700 mb-2">فروشنده‌های مجاز (هر خط یک مورد)</label>
+              <textarea name="seller_names_include" rows="4" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">{{ form_data["seller_names_include"] }}</textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm text-slate-700 mb-2">فروشنده‌های غیرمجاز (هر خط یک مورد)</label>
+              <textarea name="seller_names_exclude" rows="4" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">{{ form_data["seller_names_exclude"] }}</textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm text-slate-700 mb-2">گارانتی‌های مجاز (هر خط یک مورد)</label>
+              <textarea name="allowed_warranties" rows="3" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">{{ form_data["allowed_warranties"] }}</textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm text-slate-700 mb-2">گارانتی‌های مسدود (هر خط یک مورد)</label>
+              <textarea name="blocked_warranties" rows="3" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">{{ form_data["blocked_warranties"] }}</textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
+          <h2 class="text-lg font-bold text-slate-900 mb-5">اعلان‌ها</h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <label class="flex items-center gap-3 text-sm">
+              <input type="checkbox" name="notify_when_available" value="true" {% if form_data["notify_when_available"] %}checked{% endif %}>
+              اطلاع هنگام موجود شدن
+            </label>
+
+            <label class="flex items-center gap-3 text-sm">
+              <input type="checkbox" name="notify_when_unavailable" value="true" {% if form_data["notify_when_unavailable"] %}checked{% endif %}>
+              اطلاع هنگام ناموجود شدن
+            </label>
+
+            <label class="flex items-center gap-3 text-sm">
+              <input type="checkbox" name="notify_on_any_price_change" value="true" {% if form_data["notify_on_any_price_change"] %}checked{% endif %}>
+              اطلاع هنگام هر تغییر قیمت
+            </label>
+
+            <label class="flex items-center gap-3 text-sm">
+              <input type="checkbox" name="notify_on_seller_change" value="true" {% if form_data["notify_on_seller_change"] %}checked{% endif %}>
+              تغییر فروشنده ارزان‌ترین
+            </label>
+
+            <label class="flex items-center gap-3 text-sm">
+              <input type="checkbox" name="notify_on_new_seller" value="true" {% if form_data["notify_on_new_seller"] %}checked{% endif %}>
+              فروشنده جدید
+            </label>
+
+            <label class="flex items-center gap-3 text-sm">
+              <input type="checkbox" name="notify_on_removed_seller" value="true" {% if form_data["notify_on_removed_seller"] %}checked{% endif %}>
+              حذف فروشنده
+            </label>
+
+            <label class="flex items-center gap-3 text-sm">
+              <input type="checkbox" name="notify_on_discount_change" value="true" {% if form_data["notify_on_discount_change"] %}checked{% endif %}>
+              تغییر تخفیف
+            </label>
+          </div>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
+          <h2 class="text-lg font-bold text-slate-900 mb-4">نمایش JSON شرط‌ها</h2>
+          <pre class="overflow-x-auto rounded-2xl bg-slate-950 text-slate-100 p-4 text-xs leading-6">{{ conditions_pretty }}</pre>
+        </section>
+
+        <section class="flex flex-wrap items-center justify-between gap-4">
+          <button
+            formaction="/product/{{ product['product_id'] }}/delete"
+            formmethod="post"
+            type="submit"
+            class="inline-flex items-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white hover:bg-rose-700"
+            onclick="return confirm('آیا از حذف این محصول مطمئن هستید؟');"
+          >
+            حذف محصول
+          </button>
+
+          <button
+            type="submit"
+            class="inline-flex items-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
+            ذخیره تغییرات
+          </button>
+        </section>
+      </form>
+    </main>
+  </div>
+</body>
+</html>
