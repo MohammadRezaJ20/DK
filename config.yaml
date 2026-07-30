@@ -20,10 +20,16 @@ notifications:
     api_key: ""
     sender: ""
     receptor: ""
+    
+  bale:
+    enabled: true
+    bot_token: "1579117131:sQZas-un8MsqRcxphWR4sgWRSGkqL_K1Png"
+    chat_id: "1920666644"
 
 web:
   host: "127.0.0.1"
   port: 8000
+  
 
 defaults:
   conditions:
