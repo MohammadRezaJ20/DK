@@ -13,7 +13,7 @@ from run_once import run_single_poll
 
 app = FastAPI()
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 config = load_config()
