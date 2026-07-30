@@ -4,3 +4,4 @@ jinja2
 httpx
 PyYAML
 tenacity
+python-multipart
