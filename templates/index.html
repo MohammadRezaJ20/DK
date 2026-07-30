@@ -1,38 +1,246 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>Digikala Monitor</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>داشبورد پایش دیجی‌کالا</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: sans-serif; direction: rtl; margin: 30px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
-    th { background: #f3f3f3; }
+    body {
+      font-family: Tahoma, IRANSans, sans-serif;
+    }
   </style>
 </head>
-<body>
-  <h1>داشبورد پایش دیجیکالا</h1>
-  <table>
-    <tr>
-      <th>شناسه</th>
-      <th>نام</th>
-      <th>قیمت</th>
-      <th>فروشنده</th>
-      <th>وضعیت</th>
-      <th>آخرین بررسی</th>
-      <th>جزئیات</th>
-    </tr>
-    {% for p in products %}
-    <tr>
-      <td>{{ p["product_id"] }}</td>
-      <td>{{ p["title"] or p["custom_name"] }}</td>
-      <td>{{ p["best_price_toman"] }}</td>
-      <td>{{ p["best_seller_name"] }}</td>
-      <td>{{ "موجود" if p["is_available"] == 1 else "ناموجود" }}</td>
-      <td>{{ p["checked_at"] }}</td>
-      <td><a href="/product/{{ p['product_id'] }}">نمایش</a></td>
-    </tr>
-    {% endfor %}
-  </table>
+<body class="bg-slate-50 text-slate-800">
+  <div class="min-h-screen">
+    <header class="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">داشبورد پایش دیجی‌کالا</h1>
+          <p class="text-sm text-slate-500 mt-1">مدیریت محصولات، مشاهده آخرین قیمت و کنترل شرط‌های هوشمند پایش</p>
+        </div>
+        <div class="text-xs text-slate-500 bg-slate-100 rounded-xl px-4 py-2">
+          Digikala Monitor
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- KPI -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="text-sm text-slate-500">کل محصولات</div>
+          <div class="mt-2 text-3xl font-extrabold text-slate-900">{{ stats["total"] }}</div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-emerald-200 p-5 shadow-sm">
+          <div class="text-sm text-emerald-600">محصولات فعال</div>
+          <div class="mt-2 text-3xl font-extrabold text-emerald-700">{{ stats["active"] }}</div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-violet-200 p-5 shadow-sm">
+          <div class="text-sm text-violet-600">دارای تخفیف</div>
+          <div class="mt-2 text-3xl font-extrabold text-violet-700">{{ stats["discounted"] }}</div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-rose-200 p-5 shadow-sm">
+          <div class="text-sm text-rose-600">ناموجود</div>
+          <div class="mt-2 text-3xl font-extrabold text-rose-700">{{ stats["unavailable"] }}</div>
+        </div>
+      </section>
+
+      <!-- Add Product Form -->
+      <section class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 mb-8">
+        <div class="flex items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">افزودن محصول جدید</h2>
+            <p class="text-sm text-slate-500 mt-1">لینک محصول و شرط‌های مانیتورینگ را ثبت کن</p>
+          </div>
+        </div>
+
+        <form action="/product" method="post" class="space-y-8">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">لینک محصول دیجی‌کالا</label>
+              <input
+                type="url"
+                name="product_url"
+                required
+                placeholder="https://www.digikala.com/product/..."
+                class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">نام سفارشی</label>
+              <input
+                type="text"
+                name="custom_name"
+                placeholder="مثلاً لپ‌تاپ شخصی"
+                class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+              <h3 class="font-bold text-slate-900 mb-4">شرط‌های عددی</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm text-slate-700 mb-2">حداکثر قیمت (تومان)</label>
+                  <input type="number" name="max_price_toman" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                </div>
+                <div>
+                  <label class="block text-sm text-slate-700 mb-2">حداقل تخفیف (%)</label>
+                  <input type="number" name="min_discount_percent" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                </div>
+                <div>
+                  <label class="block text-sm text-slate-700 mb-2">افت قیمت درصدی</label>
+                  <input type="number" name="notify_on_price_drop_percent" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                </div>
+                <div>
+                  <label class="block text-sm text-slate-700 mb-2">حداقل تعداد فروشنده موجود</label>
+                  <input type="number" name="min_stock_count" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+              <h3 class="font-bold text-slate-900 mb-4">فیلتر فروشنده / گارانتی</h3>
+              <div class="space-y-4">
+                <label class="flex items-center gap-3 text-sm text-slate-700">
+                  <input type="checkbox" name="only_digikala_seller" value="true" class="rounded border-slate-300">
+                  فقط فروشنده دیجی‌کالا
+                </label>
+
+                <div>
+                  <label class="block text-sm text-slate-700 mb-2">فروشنده‌های مجاز (هر خط یک مورد)</label>
+                  <textarea name="seller_names_include" rows="4" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"></textarea>
+                </div>
+
+                <div>
+                  <label class="block text-sm text-slate-700 mb-2">فروشنده‌های غیرمجاز (هر خط یک مورد)</label>
+                  <textarea name="seller_names_exclude" rows="4" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"></textarea>
+                </div>
+
+                <div>
+                  <label class="block text-sm text-slate-700 mb-2">گارانتی‌های مجاز (هر خط یک مورد)</label>
+                  <textarea name="allowed_warranties" rows="3" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"></textarea>
+                </div>
+
+                <div>
+                  <label class="block text-sm text-slate-700 mb-2">گارانتی‌های مسدود (هر خط یک مورد)</label>
+                  <textarea name="blocked_warranties" rows="3" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+            <h3 class="font-bold text-slate-900 mb-4">اعلان‌ها</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="notify_when_available" value="true" checked> اطلاع هنگام موجود شدن</label>
+              <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="notify_when_unavailable" value="true" checked> اطلاع هنگام ناموجود شدن</label>
+              <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="notify_on_any_price_change" value="true"> اطلاع هنگام هر تغییر قیمت</label>
+              <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="notify_on_seller_change" value="true" checked> تغییر فروشنده ارزان‌ترین</label>
+              <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="notify_on_new_seller" value="true" checked> فروشنده جدید</label>
+              <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="notify_on_removed_seller" value="true" checked> حذف فروشنده</label>
+              <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="notify_on_discount_change" value="true" checked> تغییر تخفیف</label>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              class="inline-flex items-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition"
+            >
+              افزودن محصول
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Product Table -->
+      <section class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-200 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">لیست محصولات</h2>
+            <p class="text-sm text-slate-500 mt-1">آخرین وضعیت پایش همه محصولات</p>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-100 text-slate-700">
+              <tr>
+                <th class="px-4 py-4 text-right font-semibold">شناسه</th>
+                <th class="px-4 py-4 text-right font-semibold">نام محصول</th>
+                <th class="px-4 py-4 text-right font-semibold">برند</th>
+                <th class="px-4 py-4 text-right font-semibold">قیمت</th>
+                <th class="px-4 py-4 text-right font-semibold">فروشنده</th>
+                <th class="px-4 py-4 text-right font-semibold">وضعیت</th>
+                <th class="px-4 py-4 text-right font-semibold">فعال</th>
+                <th class="px-4 py-4 text-right font-semibold">آخرین بررسی</th>
+                <th class="px-4 py-4 text-right font-semibold">عملیات</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% for p in products %}
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-4 py-4 align-top text-slate-700">{{ p["product_id"] }}</td>
+                <td class="px-4 py-4 align-top">
+                  <div class="font-semibold text-slate-900">{{ p["title"] or p["custom_name"] or "-" }}</div>
+                  {% if p["custom_name"] %}
+                  <div class="text-xs text-slate-500 mt-1">نام سفارشی: {{ p["custom_name"] }}</div>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-4 align-top text-slate-700">{{ p["brand"] or "-" }}</td>
+                <td class="px-4 py-4 align-top text-slate-900 font-medium">
+                  {% if p["best_price_toman"] is not none %}
+                    {{ "{:,}".format(p["best_price_toman"]) }} تومان
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td class="px-4 py-4 align-top text-slate-700">{{ p["best_seller_name"] or "-" }}</td>
+                <td class="px-4 py-4 align-top">
+                  {% if p["is_available"] == 1 %}
+                    <span class="inline-flex rounded-full bg-emerald-100 text-emerald-700 px-3 py-1 text-xs font-semibold">موجود</span>
+                  {% else %}
+                    <span class="inline-flex rounded-full bg-rose-100 text-rose-700 px-3 py-1 text-xs font-semibold">ناموجود</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-4 align-top">
+                  {% if p["active"] == 1 %}
+                    <span class="inline-flex rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-semibold">فعال</span>
+                  {% else %}
+                    <span class="inline-flex rounded-full bg-slate-200 text-slate-700 px-3 py-1 text-xs font-semibold">غیرفعال</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-4 align-top text-slate-500 text-xs">{{ p["checked_at"] or "-" }}</td>
+                <td class="px-4 py-4 align-top">
+                  <div class="flex flex-wrap gap-2">
+                    <a href="/product/{{ p['product_id'] }}" class="inline-flex rounded-lg bg-slate-900 text-white px-3 py-2 text-xs font-medium hover:bg-slate-700">
+                      نمایش
+                    </a>
+                    <a href="/product/{{ p['product_id'] }}/edit" class="inline-flex rounded-lg bg-amber-500 text-white px-3 py-2 text-xs font-medium hover:bg-amber-600">
+                      ویرایش
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="9" class="px-4 py-10 text-center text-slate-500">
+                  هنوز محصولی ثبت نشده است.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
 </body>
 </html>
