@@ -1,9 +1,10 @@
 app:
-  db_url: postgresql://neondb_owner:npg_BQtXAv7wi1VD@ep-purple-snow-asqpnm5n-pooler.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+  database_url: postgresql://USER:PASSWORD@HOST:PORT/DBNAME?sslmode=require
   poll_interval_seconds: 900
   request_timeout_seconds: 20
   min_delay_between_requests_seconds: 2
   max_delay_between_requests_seconds: 7
+
 
 notifications:
   console:
