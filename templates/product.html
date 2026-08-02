@@ -9,13 +9,16 @@
     table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
     th { background: #f3f3f3; }
+    .available { color: green; font-weight: bold; }
+    .unavailable { color: red; font-weight: bold; }
+    pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
   </style>
 </head>
 <body>
   <h1>{{ product["title"] }}</h1>
   <p>شناسه: {{ product["product_id"] }}</p>
-  <p>برند: {{ product["brand"] }}</p>
-  <p>دسته‌بندی: {{ product["category"] }}</p>
+  <p>برند: {{ product["brand"] or "-" }}</p>
+  <p>دسته‌بندی: {{ product["category"] or "-" }}</p>
   <p><a href="{{ product['url'] }}" target="_blank">لینک محصول</a></p>
 
   <h2>نمودار قیمت</h2>
@@ -33,10 +36,18 @@
     {% for row in history %}
     <tr>
       <td>{{ row["checked_at"] }}</td>
-      <td>{{ row["best_price_toman"] }}</td>
-      <td>{{ row["best_seller_name"] }}</td>
-      <td>{{ row["best_discount_percent"] }}</td>
-      <td>{{ "موجود" if row["is_available"] == 1 else "ناموجود" }}</td>
+      <td>
+        {% if row["best_price_toman"] is not none %}
+          {{ "{:,.0f}".format(row["best_price_toman"]) }}
+        {% else %}
+          -
+        {% endif %}
+      </td>
+      <td>{{ row["best_seller_name"] or "-" }}</td>
+      <td>{{ row["best_discount_percent"] if row["best_discount_percent"] is not none else "-" }}</td>
+      <td class="{{ 'available' if row['is_available'] else 'unavailable' }}">
+        {{ "موجود" if row["is_available"] else "ناموجود" }}
+      </td>
     </tr>
     {% endfor %}
   </table>
@@ -71,10 +82,18 @@
     <tr>
       <td>{{ s["checked_at"] }}</td>
       <td>{{ s["seller_name"] }}</td>
-      <td>{{ s["price_toman"] }}</td>
-      <td>{{ s["discount_percent"] }}</td>
-      <td>{{ "موجود" if s["is_available"] == 1 else "ناموجود" }}</td>
-      <td>{{ s["warranty_name"] }}</td>
+      <td>
+        {% if s["price_toman"] is not none %}
+          {{ "{:,.0f}".format(s["price_toman"]) }}
+        {% else %}
+          -
+        {% endif %}
+      </td>
+      <td>{{ s["discount_percent"] if s["discount_percent"] is not none else "-" }}</td>
+      <td class="{{ 'available' if s['is_available'] else 'unavailable' }}">
+        {{ "موجود" if s["is_available"] else "ناموجود" }}
+      </td>
+      <td>{{ s["warranty_name"] or "-" }}</td>
     </tr>
     {% endfor %}
   </table>
