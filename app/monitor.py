@@ -3,7 +3,7 @@ import random
 import time
 import httpx
 
-from app.digikala import extract_product_id, fetch_product, parse_product
+from app.digikala import fetch_product, parse_product
 from app.rules import evaluate_rules, filter_offers, best_available_offer
 from app.notifier import Notifier
 
@@ -12,14 +12,14 @@ def upsert_product(conn, product_id, url, custom_name, title, brand, category, c
     cur = conn.cursor()
     cur.execute("""
     INSERT INTO products (product_id, url, custom_name, title, brand, category, conditions_json, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
     ON CONFLICT(product_id) DO UPDATE SET
-        url=excluded.url,
-        custom_name=excluded.custom_name,
-        title=excluded.title,
-        brand=excluded.brand,
-        category=excluded.category,
-        conditions_json=excluded.conditions_json,
+        url=EXCLUDED.url,
+        custom_name=EXCLUDED.custom_name,
+        title=EXCLUDED.title,
+        brand=EXCLUDED.brand,
+        category=EXCLUDED.category,
+        conditions_json=EXCLUDED.conditions_json,
         updated_at=CURRENT_TIMESTAMP
     """, (product_id, url, custom_name, title, brand, category, conditions_json))
     conn.commit()
@@ -27,7 +27,7 @@ def upsert_product(conn, product_id, url, custom_name, title, brand, category, c
 
 def get_all_active_products(conn):
     cur = conn.cursor()
-    cur.execute("SELECT * FROM products WHERE active = 1 ORDER BY id ASC")
+    cur.execute("SELECT * FROM products WHERE active = TRUE ORDER BY id ASC")
     return cur.fetchall()
 
 
@@ -35,7 +35,7 @@ def get_last_snapshot(conn, product_id):
     cur = conn.cursor()
     cur.execute("""
     SELECT * FROM product_snapshots
-    WHERE product_id = ?
+    WHERE product_id = %s
     ORDER BY id DESC
     LIMIT 1
     """, (product_id,))
@@ -47,9 +47,9 @@ def get_last_seller_snapshots(conn, product_id):
     cur = conn.cursor()
     cur.execute("""
     SELECT * FROM seller_snapshots
-    WHERE product_id = ? AND checked_at = (
+    WHERE product_id = %s AND checked_at = (
         SELECT checked_at FROM seller_snapshots
-        WHERE product_id = ?
+        WHERE product_id = %s
         ORDER BY id DESC LIMIT 1
     )
     """, (product_id, product_id))
@@ -66,10 +66,10 @@ def insert_snapshot(conn, snapshot, filtered_offers):
         product_id, is_available, best_price_toman,
         best_seller_name, best_discount_percent,
         status, raw_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (
         snapshot.product_id,
-        1 if any(o.is_available for o in filtered_offers) else 0,
+        any(o.is_available for o in filtered_offers),
         best.price_toman if best else None,
         best.seller_name if best else None,
         best.discount_percent if best else None,
@@ -83,12 +83,12 @@ def insert_snapshot(conn, snapshot, filtered_offers):
             product_id, seller_id, seller_name, is_available,
             price_toman, discount_percent, seller_rating,
             warranty_name, lead_time, raw_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             snapshot.product_id,
             offer.seller_id,
             offer.seller_name,
-            1 if offer.is_available else 0,
+            offer.is_available,
             offer.price_toman,
             offer.discount_percent,
             offer.seller_rating,
@@ -106,14 +106,14 @@ def insert_notification(conn, product_id, title, message, sent_result):
     INSERT INTO notifications (
         product_id, title, message,
         sent_console, sent_telegram, sent_sms
-    ) VALUES (?, ?, ?, ?, ?, ?)
+    ) VALUES (%s, %s, %s, %s, %s, %s)
     """, (
         product_id,
         title,
         message,
-        1 if sent_result.get("console") else 0,
-        1 if sent_result.get("telegram") else 0,
-        1 if sent_result.get("sms") else 0,
+        bool(sent_result.get("console")),
+        bool(sent_result.get("telegram")),
+        bool(sent_result.get("sms")),
     ))
     conn.commit()
 
