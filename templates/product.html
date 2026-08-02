@@ -1,24 +1,139 @@
-<h2>آخرین اعلان‌ها</h2>
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ product["title"] }}</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; direction: rtl; margin: 30px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
+    th { background: #f3f3f3; }
+    .available { color: green; font-weight: bold; }
+    .unavailable { color: red; font-weight: bold; }
+    pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
+  </style>
+</head>
+<body>
+  <h1>{{ product["title"] }}</h1>
+  <p>شناسه: {{ product["product_id"] }}</p>
+  <p>برند: {{ product["brand"] or "-" }}</p>
+  <p>دسته‌بندی: {{ product["category"] or "-" }}</p>
+  <p><a href="{{ product['url'] }}" target="_blank">لینک محصول</a></p>
 
-{% if notifications %}
-<table>
-  <thead>
+  <h2>نمودار قیمت</h2>
+  <canvas id="priceChart" height="120"></canvas>
+
+  <h2>تاریخچه</h2>
+  <table>
     <tr>
       <th>زمان</th>
-      <th>نوع رویداد</th>
-      <th>پیام</th>
+      <th>قیمت</th>
+      <th>فروشنده</th>
+      <th>تخفیف</th>
+      <th>وضعیت</th>
     </tr>
-  </thead>
-  <tbody>
-    {% for n in notifications %}
+    {% for row in history %}
     <tr>
-      <td>{{ n["created_at"] or "-" }}</td>
-      <td>{{ n["event_type"] or "-" }}</td>
-      <td><pre>{{ n["message"] or "-" }}</pre></td>
+      <td>{{ row["checked_at"] }}</td>
+      <td>
+        {% if row["best_price_toman"] is not none %}
+          {{ "{:,.0f}".format(row["best_price_toman"]) }}
+        {% else %}
+          -
+        {% endif %}
+      </td>
+      <td>{{ row["best_seller_name"] or "-" }}</td>
+      <td>{{ row["best_discount_percent"] if row["best_discount_percent"] is not none else "-" }}</td>
+      <td class="{{ 'available' if row['is_available'] else 'unavailable' }}">
+        {{ "موجود" if row["is_available"] else "ناموجود" }}
+      </td>
     </tr>
     {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>هنوز اعلانی برای این محصول ثبت نشده است.</p>
-{% endif %}
+  </table>
+
+  <h2>آخرین اعلان‌ها</h2>
+  
+  {% if notifications %}
+  <table>
+    <thead>
+      <tr>
+        <th>زمان</th>
+        <th>نوع رویداد</th>
+        <th>پیام</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in notifications %}
+      <tr>
+        <td>{{ n["created_at"] or "-" }}</td>
+        <td>{{ n["event_type"] or "-" }}</td>
+        <td><pre>{{ n["message"] or "-" }}</pre></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>هنوز اعلانی برای این محصول ثبت نشده است.</p>
+  {% endif %}
+
+  <h2>آخرین وضعیت فروشنده‌ها</h2>
+  <table>
+    <tr>
+      <th>زمان</th>
+      <th>فروشنده</th>
+      <th>قیمت</th>
+      <th>تخفیف</th>
+      <th>وضعیت</th>
+      <th>گارانتی</th>
+    </tr>
+    {% for s in seller_rows %}
+    <tr>
+      <td>{{ s["checked_at"] }}</td>
+      <td>{{ s["seller_name"] }}</td>
+      <td>
+        {% if s["price_toman"] is not none %}
+          {{ "{:,.0f}".format(s["price_toman"]) }}
+        {% else %}
+          -
+        {% endif %}
+      </td>
+      <td>{{ s["discount_percent"] if s["discount_percent"] is not none else "-" }}</td>
+      <td class="{{ 'available' if s['is_available'] else 'unavailable' }}">
+        {{ "موجود" if s["is_available"] else "ناموجود" }}
+      </td>
+      <td>{{ s["warranty_name"] or "-" }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <script>
+    const labels = [
+      {% for row in history %}
+        "{{ row['checked_at'] }}",
+      {% endfor %}
+    ];
+
+    const data = [
+      {% for row in history %}
+        {{ row["best_price_toman"] if row["best_price_toman"] is not none else "null" }},
+      {% endfor %}
+    ];
+
+    new Chart(document.getElementById('priceChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'قیمت (تومان)',
+          data: data,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true
+      }
+    });
+  </script>
+</body>
+</html>
