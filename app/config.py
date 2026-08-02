@@ -1,26 +1,74 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
+
 import yaml
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 def load_config(path: str | Path | None = None) -> dict:
-    if path is None:
-        config_path = BASE_DIR / "config.yaml"
-    else:
-        config_path = Path(path)
-        if not config_path.is_absolute():
-            config_path = BASE_DIR / config_path
+    config_path = Path(
+        path or os.getenv("DIGIKALA_CONFIG", BASE_DIR / "config.yaml")
+    )
 
     with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+        config = yaml.safe_load(f) or {}
 
-    app_cfg = config.setdefault("app", {})
+    config.setdefault("app", {})
+    config.setdefault("notifications", {})
+    config.setdefault("web", {})
+    config.setdefault("defaults", {})
+    config["notifications"].setdefault("console", {})
+    config["notifications"].setdefault("telegram", {})
+    config["notifications"].setdefault("sms", {})
+    config["notifications"].setdefault("bale", {})
+    config["defaults"].setdefault("conditions", {})
 
-    if os.getenv("DATABASE_URL"):
-        app_cfg["database_url"] = os.getenv("DATABASE_URL")
+    app_cfg = config["app"]
+    notif = config["notifications"]
 
-    if os.getenv("CRON_SECRET"):
-        config["cron_secret"] = os.getenv("CRON_SECRET")
+    app_cfg["database_url"] = os.getenv(
+        "DATABASE_URL",
+        app_cfg.get("database_url", ""),
+    )
+
+    notif["telegram"]["bot_token"] = os.getenv(
+        "TELEGRAM_BOT_TOKEN",
+        notif["telegram"].get("bot_token", ""),
+    )
+    notif["telegram"]["chat_id"] = os.getenv(
+        "TELEGRAM_CHAT_ID",
+        notif["telegram"].get("chat_id", ""),
+    )
+
+    notif["sms"]["api_key"] = os.getenv(
+        "SMS_API_KEY",
+        notif["sms"].get("api_key", ""),
+    )
+    notif["sms"]["sender"] = os.getenv(
+        "SMS_SENDER",
+        notif["sms"].get("sender", ""),
+    )
+    notif["sms"]["receptor"] = os.getenv(
+        "SMS_RECEPTOR",
+        notif["sms"].get("receptor", ""),
+    )
+
+    notif["bale"]["bot_token"] = os.getenv(
+        "BALE_BOT_TOKEN",
+        notif["bale"].get("bot_token", ""),
+    )
+    notif["bale"]["chat_id"] = os.getenv(
+        "BALE_CHAT_ID",
+        notif["bale"].get("chat_id", ""),
+    )
+
+    config["cron_secret"] = os.getenv(
+        "CRON_SECRET",
+        config.get("cron_secret", ""),
+    )
 
     return config
