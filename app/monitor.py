@@ -65,7 +65,7 @@ def insert_snapshot(conn, snapshot, filtered_offers):
     INSERT INTO product_snapshots (
         product_id, is_available, best_price_toman,
         best_seller_name, best_discount_percent,
-        status, raw_json
+        status, raw_data_json
     ) VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (
         snapshot.product_id,
@@ -82,7 +82,7 @@ def insert_snapshot(conn, snapshot, filtered_offers):
         INSERT INTO seller_snapshots (
             product_id, seller_id, seller_name, is_available,
             price_toman, discount_percent, seller_rating,
-            warranty_name, lead_time, raw_json
+            warranty_name, lead_time, raw_data_json
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             snapshot.product_id,
