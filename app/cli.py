@@ -10,7 +10,7 @@ from app.monitor import upsert_product
 
 def add_product(args):
     config = load_config()
-    conn = get_connection(config["app"]["db_path"])
+    conn = get_connection(config["app"]["database_url"])
     init_db(conn)
 
     product_id = extract_product_id(args.url)
@@ -49,7 +49,7 @@ def add_product(args):
 
 def list_products(args):
     config = load_config()
-    conn = get_connection(config["app"]["db_path"])
+    conn = get_connection(config["app"]["database_url"])
     init_db(conn)
     cur = conn.cursor()
     cur.execute("SELECT * FROM products ORDER BY id ASC")
@@ -84,6 +84,7 @@ def main():
         parser.print_help()
         return
     args.func(args)
+
 
 if __name__ == "__main__":
     main()
