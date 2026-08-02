@@ -1,10 +1,9 @@
 app:
-  database_url: postgresql://USER:PASSWORD@HOST:PORT/DBNAME?sslmode=require
+  database_url: ""
   poll_interval_seconds: 900
   request_timeout_seconds: 20
   min_delay_between_requests_seconds: 2
   max_delay_between_requests_seconds: 7
-
 
 notifications:
   console:
@@ -21,16 +20,15 @@ notifications:
     api_key: ""
     sender: ""
     receptor: ""
-    
+
   bale:
     enabled: true
-    bot_token: "1579117131:sQZas-un8MsqRcxphWR4sgWRSGkqL_K1Png"
-    chat_id: "1920666644"
+    bot_token: ""
+    chat_id: ""
 
 web:
   host: "127.0.0.1"
   port: 8000
-  
 
 defaults:
   conditions:
