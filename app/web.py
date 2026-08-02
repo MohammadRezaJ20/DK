@@ -29,7 +29,7 @@ app = FastAPI(
 
 
 # ---------------------------------------------------------
-# Paths and database initialization
+# Paths and templates
 # ---------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,13 +38,38 @@ templates = Jinja2Templates(
     directory=str(BASE_DIR / "templates")
 )
 
-config = load_config()
-
-# اتصال اصلی فعلی برنامه برای نمایش صفحات
-conn = get_connection(config["app"]["db_path"])
-init_db(conn)
-
 _monitor_lock = asyncio.Lock()
+
+
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+
+def get_database_url() -> str:
+    config = load_config()
+    app_config = config.get("app", {})
+    database_url = app_config.get("database_url")
+
+    if not database_url:
+        raise RuntimeError(
+            "database_url is not configured in config.yaml or DATABASE_URL env var"
+        )
+
+    return database_url
+
+
+def open_db_connection():
+    database_url = get_database_url()
+    return get_connection(database_url)
+
+
+@app.on_event("startup")
+def startup():
+    conn = open_db_connection()
+    try:
+        init_db(conn)
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------
@@ -118,7 +143,7 @@ def add_product_to_database(
     request_data: AddProductRequest,
 ) -> dict[str, Any]:
     """
-    Fetch product data from Digikala and insert/update it in SQLite.
+    Fetch product data from Digikala and insert/update it in PostgreSQL.
 
     This function is synchronous because the existing Digikala functions
     use httpx.Client and the existing database layer is synchronous.
@@ -126,9 +151,13 @@ def add_product_to_database(
     """
 
     current_config = load_config()
+    app_config = current_config.get("app", {})
+    database_url = app_config.get("database_url")
 
-    db_path = current_config["app"]["db_path"]
-    timeout_seconds = current_config["app"].get(
+    if not database_url:
+        raise RuntimeError("database_url is not configured")
+
+    timeout_seconds = app_config.get(
         "request_timeout_seconds",
         20,
     )
@@ -189,10 +218,8 @@ def add_product_to_database(
     if request_data.only_digikala_seller:
         conditions["only_digikala_seller"] = True
 
-    # Use an independent connection for this request.
-    # This is safer than sharing the global web connection
-    # inside the threadpool.
-    product_conn = get_connection(db_path)
+    # Use an independent DB connection for this request
+    product_conn = get_connection(database_url)
 
     try:
         init_db(product_conn)
@@ -234,54 +261,59 @@ def add_product_to_database(
     response_class=HTMLResponse,
 )
 def index(request: Request):
-    cur = conn.cursor()
+    conn = open_db_connection()
 
-    cur.execute(
-        """
-        SELECT p.*,
-               (
-                   SELECT best_price_toman
-                   FROM product_snapshots ps
-                   WHERE ps.product_id = p.product_id
-                   ORDER BY ps.id DESC
-                   LIMIT 1
-               ) AS best_price_toman,
-               (
-                   SELECT best_seller_name
-                   FROM product_snapshots ps
-                   WHERE ps.product_id = p.product_id
-                   ORDER BY ps.id DESC
-                   LIMIT 1
-               ) AS best_seller_name,
-               (
-                   SELECT is_available
-                   FROM product_snapshots ps
-                   WHERE ps.product_id = p.product_id
-                   ORDER BY ps.id DESC
-                   LIMIT 1
-               ) AS is_available,
-               (
-                   SELECT checked_at
-                   FROM product_snapshots ps
-                   WHERE ps.product_id = p.product_id
-                   ORDER BY ps.id DESC
-                   LIMIT 1
-               ) AS checked_at
-        FROM products p
-        ORDER BY p.id ASC
-        """
-    )
+    try:
+        cur = conn.cursor()
 
-    products = cur.fetchall()
+        cur.execute(
+            """
+            SELECT p.*,
+                   (
+                       SELECT best_price_toman
+                       FROM product_snapshots ps
+                       WHERE ps.product_id = p.product_id
+                       ORDER BY ps.id DESC
+                       LIMIT 1
+                   ) AS best_price_toman,
+                   (
+                       SELECT best_seller_name
+                       FROM product_snapshots ps
+                       WHERE ps.product_id = p.product_id
+                       ORDER BY ps.id DESC
+                       LIMIT 1
+                   ) AS best_seller_name,
+                   (
+                       SELECT is_available
+                       FROM product_snapshots ps
+                       WHERE ps.product_id = p.product_id
+                       ORDER BY ps.id DESC
+                       LIMIT 1
+                   ) AS is_available,
+                   (
+                       SELECT checked_at
+                       FROM product_snapshots ps
+                       WHERE ps.product_id = p.product_id
+                       ORDER BY ps.id DESC
+                       LIMIT 1
+                   ) AS checked_at
+            FROM products p
+            ORDER BY p.id ASC
+            """
+        )
 
-    return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context={
-            "request": request,
-            "products": products,
-        },
-    )
+        products = cur.fetchall()
+
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context={
+                "request": request,
+                "products": products,
+            },
+        )
+    finally:
+        conn.close()
 
 
 @app.get(
@@ -292,69 +324,80 @@ def product_detail(
     request: Request,
     product_id: int,
 ):
-    cur = conn.cursor()
+    conn = open_db_connection()
 
-    cur.execute(
-        """
-        SELECT *
-        FROM products
-        WHERE product_id = ?
-        """,
-        (product_id,),
-    )
-    product = cur.fetchone()
+    try:
+        cur = conn.cursor()
 
-    cur.execute(
-        """
-        SELECT
-            checked_at,
-            best_price_toman,
-            best_seller_name,
-            best_discount_percent,
-            is_available
-        FROM product_snapshots
-        WHERE product_id = ?
-        ORDER BY id ASC
-        """,
-        (product_id,),
-    )
-    history = cur.fetchall()
+        cur.execute(
+            """
+            SELECT *
+            FROM products
+            WHERE product_id = %s
+            """,
+            (product_id,),
+        )
+        product = cur.fetchone()
 
-    cur.execute(
-        """
-        SELECT *
-        FROM notifications
-        WHERE product_id = ?
-        ORDER BY id DESC
-        LIMIT 50
-        """,
-        (product_id,),
-    )
-    notifications = cur.fetchall()
+        if not product:
+            raise HTTPException(
+                status_code=404,
+                detail="Product not found",
+            )
 
-    cur.execute(
-        """
-        SELECT *
-        FROM seller_snapshots
-        WHERE product_id = ?
-        ORDER BY id DESC
-        LIMIT 100
-        """,
-        (product_id,),
-    )
-    seller_rows = cur.fetchall()
+        cur.execute(
+            """
+            SELECT
+                checked_at,
+                best_price_toman,
+                best_seller_name,
+                best_discount_percent,
+                is_available
+            FROM product_snapshots
+            WHERE product_id = %s
+            ORDER BY id ASC
+            """,
+            (product_id,),
+        )
+        history = cur.fetchall()
 
-    return templates.TemplateResponse(
-        request=request,
-        name="product.html",
-        context={
-            "request": request,
-            "product": product,
-            "history": history,
-            "notifications": notifications,
-            "seller_rows": seller_rows,
-        },
-    )
+        cur.execute(
+            """
+            SELECT *
+            FROM notifications
+            WHERE product_id = %s
+            ORDER BY id DESC
+            LIMIT 50
+            """,
+            (product_id,),
+        )
+        notifications = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT *
+            FROM seller_snapshots
+            WHERE product_id = %s
+            ORDER BY id DESC
+            LIMIT 100
+            """,
+            (product_id,),
+        )
+        seller_rows = cur.fetchall()
+
+        return templates.TemplateResponse(
+            request=request,
+            name="product.html",
+            context={
+                "request": request,
+                "product": product,
+                "history": history,
+                "notifications": notifications,
+                "seller_rows": seller_rows,
+            },
+        )
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------
