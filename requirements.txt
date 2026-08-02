@@ -5,3 +5,4 @@ httpx
 PyYAML
 tenacity
 python-multipart
+psycopg2-binary
