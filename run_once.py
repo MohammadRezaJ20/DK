@@ -5,13 +5,11 @@ from app.monitor import monitor_once
 
 def run_single_poll():
     config = load_config()
-    db_path = config["app"]["db_path"]
+    database_url = config["app"]["database_url"]
 
-    conn = get_connection(db_path)
+    conn = get_connection(database_url)
     try:
         init_db(conn)
-
-        # فقط یک بار اجرا می‌شود و دیگر حلقه ندارد
         print("Starting single poll...")
         monitor_once(conn, config)
         print("Poll finished.")
