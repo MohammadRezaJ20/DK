@@ -7,7 +7,7 @@ from app.monitor import monitor_once
 
 def main():
     config = load_config()
-    conn = get_connection(config["app"]["db_path"])
+    conn = get_connection(config["app"]["database_url"])
     init_db(conn)
 
     interval = config["app"]["poll_interval_seconds"]
