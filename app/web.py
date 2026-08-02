@@ -363,26 +363,15 @@ def product_detail(
 
         cur.execute(
             """
-            SELECT
-                id,
-                product_id,
-                event_type,
-                event_type AS title,
-                message,
-                payload_json,
-                is_delivered_telegram,
-                is_delivered_sms,
-                is_delivered_bale,
-                created_at
+            SELECT *
             FROM notifications
             WHERE product_id = %s
-            ORDER BY created_at DESC, id DESC
+            ORDER BY id DESC
             LIMIT 50
             """,
             (product_id,),
         )
         notifications = cur.fetchall()
-
 
         cur.execute(
             """
