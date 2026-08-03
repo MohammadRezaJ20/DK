@@ -2,12 +2,6 @@ from dataclasses import dataclass
 from typing import Optional
 from sqlalchemy import DateTime, func
 
-last_checked_at: Mapped[datetime] = mapped_column(
-    DateTime(timezone=True),
-    server_default=func.now(),
-    nullable=False,
-)
-
 @dataclass
 class SellerOffer:
     seller_id: Optional[int]
