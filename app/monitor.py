@@ -152,6 +152,10 @@ def insert_notification(conn, product_id, title, message, sent_result):
         bool(sent_result.get("telegram")),
         bool(sent_result.get("sms")),
         bool(sent_result.get("bale")),
+        bool(sent_result.get("telegram")),
+        bool(sent_result.get("sms")),
+        bool(sent_result.get("bale")),
+
     ))
     conn.commit()
 
