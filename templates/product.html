@@ -2,110 +2,292 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title>{{ product["title"] }}</title>
+  <title>{{ product["custom_name"] or product["title"] }}</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: sans-serif; direction: rtl; margin: 30px; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
-    th { background: #f3f3f3; }
-    .available { color: green; font-weight: bold; }
-    .unavailable { color: red; font-weight: bold; }
-    pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
+    body {
+      font-family: sans-serif;
+      direction: rtl;
+      margin: 30px;
+      background: #fafafa;
+      color: #222;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      margin-top: 32px;
+      margin-bottom: 12px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 20px;
+      background: #fff;
+    }
+
+    th,
+    td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: right;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f3f3f3;
+    }
+
+    a {
+      color: #0b6bcb;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .available {
+      color: green;
+      font-weight: bold;
+    }
+
+    .unavailable {
+      color: red;
+      font-weight: bold;
+    }
+
+    .muted {
+      color: #777;
+      font-size: 0.9em;
+    }
+
+    .price {
+      direction: ltr;
+      display: inline-block;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      font-family: inherit;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 16px;
+    }
   </style>
 </head>
 <body>
-  <h1>{{ product["title"] }}</h1>
-  <p>شناسه: {{ product["product_id"] }}</p>
-  <p>برند: {{ product["brand"] or "-" }}</p>
-  <p>دسته‌بندی: {{ product["category"] or "-" }}</p>
-  <p><a href="{{ product['url'] }}" target="_blank">لینک محصول</a></p>
+  <a class="back" href="/">بازگشت به داشبورد</a>
+
+  <h1>{{ product["custom_name"] or product["title"] }}</h1>
+
+  {% if product["custom_name"] and product["title"] %}
+    <p class="muted">عنوان اصلی دیجیکالا: {{ product["title"] }}</p>
+  {% endif %}
+
+  <div class="card">
+    <p>شناسه: {{ product["product_id"] }}</p>
+    <p>برند: {{ product["brand"] or "-" }}</p>
+    <p>دسته‌بندی: {{ product["category"] or "-" }}</p>
+    <p>فعال: {{ "بله" if product["active"] else "خیر" }}</p>
+    <p>آخرین بررسی: {{ product["last_checked_at"] or "-" }}</p>
+    <p>
+      <a href="{{ product['url'] }}" target="_blank">
+        لینک محصول در دیجیکالا
+      </a>
+    </p>
+  </div>
 
   <h2>نمودار قیمت</h2>
-  <canvas id="priceChart" height="120"></canvas>
+  <div class="card">
+    <canvas id="priceChart" height="120"></canvas>
+  </div>
 
-  <h2>تاریخچه</h2>
-  <table>
-    <tr>
-      <th>زمان</th>
-      <th>قیمت</th>
-      <th>فروشنده</th>
-      <th>تخفیف</th>
-      <th>وضعیت</th>
-    </tr>
-    {% for row in history %}
-    <tr>
-      <td>{{ row["checked_at"] }}</td>
-      <td>
-        {% if row["best_price_toman"] is not none %}
-          {{ "{:,.0f}".format(row["best_price_toman"]) }}
-        {% else %}
-          -
-        {% endif %}
-      </td>
-      <td>{{ row["best_seller_name"] or "-" }}</td>
-      <td>{{ row["best_discount_percent"] if row["best_discount_percent"] is not none else "-" }}</td>
-      <td class="{{ 'available' if row['is_available'] else 'unavailable' }}">
-        {{ "موجود" if row["is_available"] else "ناموجود" }}
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-
-  <h2>آخرین اعلان‌ها</h2>
-  
-  {% if notifications %}
+  <h2>تاریخچه پایش</h2>
+  {% if history %}
   <table>
     <thead>
       <tr>
         <th>زمان</th>
-        <th>نوع رویداد</th>
-        <th>پیام</th>
+        <th>قیمت فعلی</th>
+        <th>قیمت قبل از تخفیف</th>
+        <th>فروشنده</th>
+        <th>تخفیف</th>
+        <th>وضعیت</th>
+        <th>وضعیت API</th>
       </tr>
     </thead>
+
     <tbody>
-      {% for n in notifications %}
+      {% for row in history %}
       <tr>
-        <td>{{ n["created_at"] or "-" }}</td>
-        <td>{{ n["event_type"] or "-" }}</td>
-        <td><pre>{{ n["message"] or "-" }}</pre></td>
+        <td>{{ row["checked_at"] }}</td>
+
+        <td>
+          {% if row["best_price_toman"] is not none %}
+            <span class="price">{{ "{:,.0f}".format(row["best_price_toman"]) }}</span>
+            تومان
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td>
+          {% if row["best_list_price_toman"] is not none %}
+            <span class="price">{{ "{:,.0f}".format(row["best_list_price_toman"]) }}</span>
+            تومان
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td>{{ row["best_seller_name"] or "-" }}</td>
+
+        <td>
+          {% if row["best_discount_percent"] is not none %}
+            {{ row["best_discount_percent"] }}٪
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td class="{{ 'available' if row['is_available'] else 'unavailable' }}">
+          {{ "موجود" if row["is_available"] else "ناموجود" }}
+        </td>
+
+        <td>{{ row["status"] or "-" }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% else %}
-  <p>هنوز اعلانی برای این محصول ثبت نشده است.</p>
+    <p>هنوز تاریخچه‌ای برای این محصول ثبت نشده است.</p>
+  {% endif %}
+
+  <h2>آخرین اعلان‌ها</h2>
+
+  {% if notifications %}
+  <table>
+    <thead>
+      <tr>
+        <th>زمان</th>
+        <th>عنوان</th>
+        <th>نوع رویداد</th>
+        <th>پیام</th>
+        <th>Console</th>
+        <th>Telegram</th>
+        <th>SMS</th>
+        <th>Bale</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for n in notifications %}
+      <tr>
+        <td>{{ n["created_at"] or "-" }}</td>
+        <td>{{ n["title"] or "-" }}</td>
+        <td>{{ n["event_type"] or "-" }}</td>
+        <td><pre>{{ n["message"] or "-" }}</pre></td>
+        <td>{{ "✓" if n["sent_console"] else "-" }}</td>
+        <td>{{ "✓" if n["sent_telegram"] else "-" }}</td>
+        <td>{{ "✓" if n["sent_sms"] else "-" }}</td>
+        <td>{{ "✓" if n["sent_bale"] else "-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>هنوز اعلانی برای این محصول ثبت نشده است.</p>
   {% endif %}
 
   <h2>آخرین وضعیت فروشنده‌ها</h2>
+
+  {% if seller_rows %}
   <table>
-    <tr>
-      <th>زمان</th>
-      <th>فروشنده</th>
-      <th>قیمت</th>
-      <th>تخفیف</th>
-      <th>وضعیت</th>
-      <th>گارانتی</th>
-    </tr>
-    {% for s in seller_rows %}
-    <tr>
-      <td>{{ s["checked_at"] }}</td>
-      <td>{{ s["seller_name"] }}</td>
-      <td>
-        {% if s["price_toman"] is not none %}
-          {{ "{:,.0f}".format(s["price_toman"]) }}
-        {% else %}
-          -
-        {% endif %}
-      </td>
-      <td>{{ s["discount_percent"] if s["discount_percent"] is not none else "-" }}</td>
-      <td class="{{ 'available' if s['is_available'] else 'unavailable' }}">
-        {{ "موجود" if s["is_available"] else "ناموجود" }}
-      </td>
-      <td>{{ s["warranty_name"] or "-" }}</td>
-    </tr>
-    {% endfor %}
+    <thead>
+      <tr>
+        <th>زمان</th>
+        <th>شناسه فروشنده</th>
+        <th>فروشنده</th>
+        <th>قیمت فعلی</th>
+        <th>قیمت قبل از تخفیف</th>
+        <th>تخفیف</th>
+        <th>وضعیت</th>
+        <th>امتیاز</th>
+        <th>مهلت ارسال</th>
+        <th>گارانتی</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for s in seller_rows %}
+      <tr>
+        <td>{{ s["checked_at"] }}</td>
+        <td>{{ s["seller_id"] or "-" }}</td>
+        <td>{{ s["seller_name"] or "-" }}</td>
+
+        <td>
+          {% if s["price_toman"] is not none %}
+            <span class="price">{{ "{:,.0f}".format(s["price_toman"]) }}</span>
+            تومان
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td>
+          {% if s["list_price_toman"] is not none %}
+            <span class="price">{{ "{:,.0f}".format(s["list_price_toman"]) }}</span>
+            تومان
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td>
+          {% if s["discount_percent"] is not none %}
+            {{ s["discount_percent"] }}٪
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td class="{{ 'available' if s['is_available'] else 'unavailable' }}">
+          {{ "موجود" if s["is_available"] else "ناموجود" }}
+        </td>
+
+        <td>{{ s["rating"] if s["rating"] is not none else "-" }}</td>
+
+        <td>
+          {% if s["lead_time_days"] is not none %}
+            {{ s["lead_time_days"] }} روز
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td>{{ s["warranty_name"] or "-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
   </table>
+  {% else %}
+    <p>هنوز snapshot فروشنده‌ای ثبت نشده است.</p>
+  {% endif %}
 
   <script>
     const labels = [
@@ -114,9 +296,15 @@
       {% endfor %}
     ];
 
-    const data = [
+    const priceData = [
       {% for row in history %}
         {{ row["best_price_toman"] if row["best_price_toman"] is not none else "null" }},
+      {% endfor %}
+    ];
+
+    const listPriceData = [
+      {% for row in history %}
+        {{ row["best_list_price_toman"] if row["best_list_price_toman"] is not none else "null" }},
       {% endfor %}
     ];
 
@@ -124,14 +312,32 @@
       type: 'line',
       data: {
         labels: labels,
-        datasets: [{
-          label: 'قیمت (تومان)',
-          data: data,
-          borderWidth: 2
-        }]
+        datasets: [
+          {
+            label: 'قیمت فعلی (تومان)',
+            data: priceData,
+            borderWidth: 2,
+            tension: 0.2
+          },
+          {
+            label: 'قیمت قبل از تخفیف (تومان)',
+            data: listPriceData,
+            borderWidth: 2,
+            tension: 0.2
+          }
+        ]
       },
       options: {
-        responsive: true
+        responsive: true,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        scales: {
+          y: {
+            beginAtZero: false
+          }
+        }
       }
     });
   </script>
