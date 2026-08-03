@@ -63,60 +63,97 @@ def insert_snapshot(conn, snapshot, filtered_offers):
 
     cur.execute("""
     INSERT INTO product_snapshots (
-        product_id, is_available, best_price_toman,
-        best_seller_name, best_discount_percent,
-        status, raw_data_json
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        product_id,
+        price,
+        list_price,
+        discount_percent,
+        is_available,
+        seller_name,
+        best_discount_percent,
+        status,
+        raw_data_json
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         snapshot.product_id,
-        any(o.is_available for o in filtered_offers),
         best.price_toman if best else None,
+        best.list_price_toman if best else None,
+        best.discount_percent if best else None,
+        any(o.is_available for o in filtered_offers),
         best.seller_name if best else None,
         best.discount_percent if best else None,
-        snapshot.status,
+        snapshot.status or "unknown",
         json.dumps(snapshot.raw, ensure_ascii=False),
     ))
 
     for offer in filtered_offers:
         cur.execute("""
         INSERT INTO seller_snapshots (
-            product_id, seller_id, seller_name, is_available,
-            price_toman, discount_percent, seller_rating,
-            warranty_name, lead_time, raw_data_json
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            product_id,
+            seller_id,
+            seller_name,
+            is_available,
+            price_toman,
+            discount_percent,
+            seller_rating,
+            rating,
+            warranty_name,
+            lead_time,
+            lead_time_days,
+            raw_data_json
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             snapshot.product_id,
             offer.seller_id,
-            offer.seller_name,
-            offer.is_available,
+            offer.seller_name or "Unknown Seller",
+            bool(offer.is_available),
             offer.price_toman,
             offer.discount_percent,
             offer.seller_rating,
+            offer.rating,
             offer.warranty_name,
             offer.lead_time,
+            offer.lead_time_days,
             json.dumps(offer.raw, ensure_ascii=False),
         ))
 
-    conn.commit()
+    cur.execute("""
+    UPDATE products
+    SET last_checked_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE product_id = %s
+    """, (snapshot.product_id,))
 
+    conn.commit()
 
 def insert_notification(conn, product_id, title, message, sent_result):
     cur = conn.cursor()
     cur.execute("""
     INSERT INTO notifications (
-        product_id, title, message,
-        sent_console, sent_telegram, sent_sms
-    ) VALUES (%s, %s, %s, %s, %s, %s)
+        product_id,
+        title,
+        event_type,
+        message,
+        payload_json,
+        sent_console,
+        sent_telegram,
+        sent_sms,
+        sent_bale,
+        is_delivered_telegram,
+        is_delivered_sms,
+        is_delivered_bale
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         product_id,
         title,
+        "rule_triggered",
         message,
+        json.dumps(sent_result, ensure_ascii=False),
         bool(sent_result.get("console")),
         bool(sent_result.get("telegram")),
         bool(sent_result.get("sms")),
+        bool(sent_result.get("bale")),
     ))
     conn.commit()
-
 
 def build_report(snapshot, filtered_offers, reasons):
     best = best_available_offer(filtered_offers)
@@ -211,3 +248,4 @@ def monitor_once(conn, config):
                 report = build_report(snapshot, filtered_offers, reasons)
                 sent = notifier.notify_all(report)
                 insert_notification(conn, product_id, snapshot.title, report, sent)
+
