@@ -123,6 +123,12 @@ def init_db(conn):
             ADD COLUMN IF NOT EXISTS raw_data_json TEXT,
             ADD COLUMN IF NOT EXISTS checked_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;
         """)
+        
+        cur.execute("""
+        ALTER TABLE seller_snapshots
+            ADD COLUMN IF NOT EXISTS rating REAL,
+            ADD COLUMN IF NOT EXISTS lead_time_days INTEGER;
+        """)
 
         # برای سازگاری با schemaهای قدیمی که price/final_price داشته‌اند
         # اگر price_toman خالی باشد و ستون‌های قدیمی وجود داشته باشند، می‌توانیم بعداً دستی migrate کنیم.
@@ -167,14 +173,16 @@ def init_db(conn):
         # Migration-safe additions for notifications
         cur.execute("""
         ALTER TABLE notifications
-            ADD COLUMN IF NOT EXISTS event_type TEXT,
-            ADD COLUMN IF NOT EXISTS message TEXT,
-            ADD COLUMN IF NOT EXISTS payload_json TEXT NOT NULL DEFAULT '{}',
+            ADD COLUMN IF NOT EXISTS title TEXT,
+            ADD COLUMN IF NOT EXISTS sent_console BOOLEAN NOT NULL DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS sent_telegram BOOLEAN NOT NULL DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS sent_sms BOOLEAN NOT NULL DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS sent_bale BOOLEAN NOT NULL DEFAULT FALSE,
             ADD COLUMN IF NOT EXISTS is_delivered_telegram BOOLEAN NOT NULL DEFAULT FALSE,
             ADD COLUMN IF NOT EXISTS is_delivered_sms BOOLEAN NOT NULL DEFAULT FALSE,
-            ADD COLUMN IF NOT EXISTS is_delivered_bale BOOLEAN NOT NULL DEFAULT FALSE,
-            ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;
+            ADD COLUMN IF NOT EXISTS is_delivered_bale BOOLEAN NOT NULL DEFAULT FALSE;
         """)
+
 
         # -------------------------
         # indexes
