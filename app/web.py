@@ -45,8 +45,12 @@ _monitor_lock = asyncio.Lock()
 # Helpers
 # ---------------------------------------------------------
 
+def get_current_config() -> dict:
+    return load_config()
+
+
 def get_database_url() -> str:
-    config = load_config()
+    config = get_current_config()
     app_config = config.get("app", {})
     database_url = app_config.get("database_url")
 
@@ -66,6 +70,7 @@ def open_db_connection():
 @app.on_event("startup")
 def startup():
     conn = open_db_connection()
+
     try:
         init_db(conn)
     finally:
@@ -118,9 +123,19 @@ class AddProductRequest(BaseModel):
 def verify_api_key(x_api_key: str | None) -> None:
     """
     Validate the x-api-key header against CRON_SECRET.
+
+    Priority:
+    1. CRON_SECRET env var
+    2. cron_secret from config.yaml/load_config()
     """
 
-    expected_secret = os.getenv("CRON_SECRET")
+    config = get_current_config()
+
+    expected_secret = (
+        os.getenv("CRON_SECRET")
+        or config.get("cron_secret")
+        or ""
+    )
 
     if not expected_secret:
         raise HTTPException(
@@ -150,7 +165,7 @@ def add_product_to_database(
     It is executed in a threadpool by the FastAPI endpoint.
     """
 
-    current_config = load_config()
+    current_config = get_current_config()
     app_config = current_config.get("app", {})
     database_url = app_config.get("database_url")
 
@@ -218,6 +233,12 @@ def add_product_to_database(
     if request_data.only_digikala_seller:
         conditions["only_digikala_seller"] = True
 
+    custom_name = (
+        request_data.name.strip()
+        if request_data.name and request_data.name.strip()
+        else None
+    )
+
     # Use an independent DB connection for this request
     product_conn = get_connection(database_url)
 
@@ -228,7 +249,7 @@ def add_product_to_database(
             conn=product_conn,
             product_id=product_id,
             url=request_data.url,
-            custom_name=request_data.name,
+            custom_name=custom_name,
             title=snapshot.title,
             brand=snapshot.brand,
             category=snapshot.category,
@@ -240,11 +261,16 @@ def add_product_to_database(
 
         product_conn.commit()
 
+    except Exception:
+        product_conn.rollback()
+        raise
+
     finally:
         product_conn.close()
 
     return {
         "product_id": product_id,
+        "custom_name": custom_name,
         "title": snapshot.title,
         "brand": snapshot.brand,
         "category": snapshot.category,
@@ -268,35 +294,50 @@ def index(request: Request):
 
         cur.execute(
             """
-            SELECT p.*,
-                   (
-                       SELECT best_price_toman
-                       FROM product_snapshots ps
-                       WHERE ps.product_id = p.product_id
-                       ORDER BY ps.id DESC
-                       LIMIT 1
-                   ) AS best_price_toman,
-                   (
-                       SELECT best_seller_name
-                       FROM product_snapshots ps
-                       WHERE ps.product_id = p.product_id
-                       ORDER BY ps.id DESC
-                       LIMIT 1
-                   ) AS best_seller_name,
-                   (
-                       SELECT is_available
-                       FROM product_snapshots ps
-                       WHERE ps.product_id = p.product_id
-                       ORDER BY ps.id DESC
-                       LIMIT 1
-                   ) AS is_available,
-                   (
-                       SELECT checked_at
-                       FROM product_snapshots ps
-                       WHERE ps.product_id = p.product_id
-                       ORDER BY ps.id DESC
-                       LIMIT 1
-                   ) AS checked_at
+            SELECT
+                p.*,
+                (
+                    SELECT ps.best_price_toman
+                    FROM product_snapshots ps
+                    WHERE ps.product_id = p.product_id
+                    ORDER BY ps.id DESC
+                    LIMIT 1
+                ) AS best_price_toman,
+                (
+                    SELECT ps.best_list_price_toman
+                    FROM product_snapshots ps
+                    WHERE ps.product_id = p.product_id
+                    ORDER BY ps.id DESC
+                    LIMIT 1
+                ) AS best_list_price_toman,
+                (
+                    SELECT ps.best_seller_name
+                    FROM product_snapshots ps
+                    WHERE ps.product_id = p.product_id
+                    ORDER BY ps.id DESC
+                    LIMIT 1
+                ) AS best_seller_name,
+                (
+                    SELECT ps.best_discount_percent
+                    FROM product_snapshots ps
+                    WHERE ps.product_id = p.product_id
+                    ORDER BY ps.id DESC
+                    LIMIT 1
+                ) AS best_discount_percent,
+                (
+                    SELECT ps.is_available
+                    FROM product_snapshots ps
+                    WHERE ps.product_id = p.product_id
+                    ORDER BY ps.id DESC
+                    LIMIT 1
+                ) AS is_available,
+                (
+                    SELECT ps.checked_at
+                    FROM product_snapshots ps
+                    WHERE ps.product_id = p.product_id
+                    ORDER BY ps.id DESC
+                    LIMIT 1
+                ) AS checked_at
             FROM products p
             ORDER BY p.id ASC
             """
@@ -312,6 +353,7 @@ def index(request: Request):
                 "products": products,
             },
         )
+
     finally:
         conn.close()
 
@@ -348,11 +390,14 @@ def product_detail(
         cur.execute(
             """
             SELECT
+                id,
                 checked_at,
                 best_price_toman,
+                best_list_price_toman,
                 best_seller_name,
                 best_discount_percent,
-                is_available
+                is_available,
+                status
             FROM product_snapshots
             WHERE product_id = %s
             ORDER BY id ASC
@@ -363,7 +408,21 @@ def product_detail(
 
         cur.execute(
             """
-            SELECT *
+            SELECT
+                id,
+                product_id,
+                title,
+                event_type,
+                message,
+                payload_json,
+                sent_console,
+                sent_telegram,
+                sent_sms,
+                sent_bale,
+                is_delivered_telegram,
+                is_delivered_sms,
+                is_delivered_bale,
+                created_at
             FROM notifications
             WHERE product_id = %s
             ORDER BY id DESC
@@ -375,7 +434,19 @@ def product_detail(
 
         cur.execute(
             """
-            SELECT *
+            SELECT
+                id,
+                product_id,
+                checked_at,
+                seller_id,
+                seller_name,
+                is_available,
+                price_toman,
+                list_price_toman,
+                discount_percent,
+                rating,
+                warranty_name,
+                lead_time_days
             FROM seller_snapshots
             WHERE product_id = %s
             ORDER BY id DESC
@@ -396,6 +467,7 @@ def product_detail(
                 "seller_rows": seller_rows,
             },
         )
+
     finally:
         conn.close()
 
