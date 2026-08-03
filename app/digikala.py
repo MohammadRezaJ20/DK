@@ -25,6 +25,33 @@ def rial_to_toman(value):
         return None
     return int(value) // 10
 
+def safe_int(value, default=None):
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def safe_float(value, default=None):
+    if value is None or value == "":
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def extract_first_int(text):
+    if not text:
+        return None
+    match = re.search(r"\d+", str(text))
+    if not match:
+        return None
+    return int(match.group(0))
+
+
 
 def safe_get(data: dict, path: list[str], default=None):
     current = data
@@ -66,36 +93,52 @@ def parse_offer(variant: dict) -> SellerOffer:
     warranty = variant.get("warranty") or {}
 
     seller_rating = None
-    if isinstance(seller.get("rating"), dict):
-        seller_rating = seller["rating"].get("total_rate")
+    rating_data = seller.get("rating")
+    if isinstance(rating_data, dict):
+        seller_rating = safe_float(
+            rating_data.get("total_rate")
+            or rating_data.get("rate")
+            or rating_data.get("score")
+        )
+    else:
+        seller_rating = safe_float(rating_data)
 
     lead_time = None
+    lead_time_days = None
+
     providers = shipment_methods.get("providers")
     if isinstance(providers, list) and providers:
         lead_time = providers[0].get("title")
+        lead_time_days = (
+            safe_int(providers[0].get("lead_time"))
+            or safe_int(providers[0].get("lead_time_days"))
+            or extract_first_int(lead_time)
+        )
 
     variant_status = (variant.get("status") or "").lower()
-    has_price = bool(price.get("selling_price"))
+    selling_price = safe_int(price.get("selling_price"))
+    rrp_price = safe_int(price.get("rrp_price"))
 
     is_available = (
         bool(variant.get("available"))
         or variant_status in ("marketable", "in_stock")
-        or has_price
+        or selling_price is not None
     )
 
     return SellerOffer(
-        seller_id=seller.get("id"),
-        seller_name=seller.get("title"),
+        seller_id=safe_int(seller.get("id")),
+        seller_name=seller.get("title") or seller.get("name") or "Unknown Seller",
         is_available=is_available,
-        price_toman=rial_to_toman(price.get("selling_price")),
-        discount_percent=price.get("discount_percent"),
+        price_toman=rial_to_toman(selling_price),
+        list_price_toman=rial_to_toman(rrp_price),
+        discount_percent=safe_int(price.get("discount_percent")),
         seller_rating=seller_rating,
+        rating=seller_rating,
         warranty_name=warranty.get("title_fa") or warranty.get("title"),
         lead_time=lead_time,
+        lead_time_days=lead_time_days,
         raw=variant,
     )
-
-
 
 def parse_product(product_id: int, url: str, payload: dict) -> ProductSnapshot:
     product = safe_get(payload, ["data", "product"], {})
