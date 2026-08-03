@@ -13,13 +13,25 @@ notifications:
     enabled: false
     bot_token: ""
     chat_id: ""
-
+    
   sms:
-    enabled: false
-    provider: "kavenegar"
+    enabled: true
+    provider: "melipayamak"
+
+    # Common
+    sender: "YOUR_MELIPAYAMAK_LINE"
+
+    # Kavenegar, اگر بعداً خواستی نگه داری
     api_key: ""
-    sender: ""
     receptor: ""
+
+    # Melipayamak
+    melipayamak:
+      username: "YOUR_USERNAME"
+      password: "YOUR_PASSWORD"
+      recipients:
+        - "09xxxxxxxxx"
+
 
   bale:
     enabled: true
