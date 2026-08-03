@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
-from sqlalchemy import DateTime, func
+
 
 @dataclass
 class SellerOffer:
@@ -8,10 +8,13 @@ class SellerOffer:
     seller_name: Optional[str]
     is_available: bool
     price_toman: Optional[int]
+    list_price_toman: Optional[int]
     discount_percent: Optional[int]
     seller_rating: Optional[float]
+    rating: Optional[float]
     warranty_name: Optional[str]
     lead_time: Optional[str]
+    lead_time_days: Optional[int]
     raw: dict
 
 
