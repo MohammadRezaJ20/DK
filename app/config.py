@@ -26,7 +26,49 @@ def load_config(path: str | Path | None = None) -> dict:
     config["notifications"].setdefault("sms", {})
     config["notifications"].setdefault("bale", {})
     config["defaults"].setdefault("conditions", {})
+    
+    sms_config = config["notifications"].setdefault("sms", {})
+    melipayamak_config = sms_config.setdefault("melipayamak", {})
+    
+    sms_config["provider"] = os.getenv(
+        "SMS_PROVIDER",
+        sms_config.get("provider", "kavenegar"),
+    )
+    
+    sms_config["sender"] = os.getenv(
+        "SMS_SENDER",
+        sms_config.get("sender", ""),
+    )
+    
+    melipayamak_config["username"] = os.getenv(
+        "MELIPAYAMAK_USERNAME",
+        melipayamak_config.get("username", ""),
+    )
+    
+    melipayamak_config["password"] = os.getenv(
+        "MELIPAYAMAK_PASSWORD",
+        melipayamak_config.get("password", ""),
+    )
+    
+    raw_recipients = os.getenv("MELIPAYAMAK_RECIPIENTS")
+    
+    if raw_recipients:
+        melipayamak_config["recipients"] = [
+            number.strip()
+            for number in raw_recipients.split(",")
+            if number.strip()
+        ]
+    else:
+        recipients = melipayamak_config.get("recipients", [])
+        if isinstance(recipients, str):
+            recipients = [recipients]
+        melipayamak_config["recipients"] = [
+            number.strip()
+            for number in recipients
+            if number and number.strip()
+        ]
 
+    
     app_cfg = config["app"]
     notif = config["notifications"]
 
