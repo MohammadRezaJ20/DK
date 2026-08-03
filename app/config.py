@@ -32,7 +32,7 @@ def load_config(path: str | Path | None = None) -> dict:
     
     sms_config["provider"] = os.getenv(
         "SMS_PROVIDER",
-        sms_config.get("provider", "kavenegar"),
+        sms_config.get("provider", "melipayamak"),
     )
     
     sms_config["sender"] = os.getenv(
