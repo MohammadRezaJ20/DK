@@ -127,6 +127,9 @@ def insert_snapshot(conn, snapshot, filtered_offers):
 
 def insert_notification(conn, product_id, title, message, sent_result):
     cur = conn.cursor()
+
+    payload = json.dumps(sent_result or {}, ensure_ascii=False)
+
     cur.execute("""
     INSERT INTO notifications (
         product_id,
@@ -141,23 +144,28 @@ def insert_notification(conn, product_id, title, message, sent_result):
         is_delivered_telegram,
         is_delivered_sms,
         is_delivered_bale
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    )
+    VALUES (
+        %s, %s, %s, %s, %s, %s, %s, %s,
+        %s, %s, %s, %s
+    )
     """, (
         product_id,
-        title,
+        title or "",
         "rule_triggered",
-        message,
-        json.dumps(sent_result, ensure_ascii=False),
-        bool(sent_result.get("console")),
-        bool(sent_result.get("telegram")),
-        bool(sent_result.get("sms")),
-        bool(sent_result.get("bale")),
-        bool(sent_result.get("telegram")),
-        bool(sent_result.get("sms")),
-        bool(sent_result.get("bale")),
-
+        message or "",
+        payload,
+        bool(sent_result and sent_result.get("console")),
+        bool(sent_result and sent_result.get("telegram")),
+        bool(sent_result and sent_result.get("sms")),
+        bool(sent_result and sent_result.get("bale")),
+        bool(sent_result and sent_result.get("telegram")),
+        bool(sent_result and sent_result.get("sms")),
+        bool(sent_result and sent_result.get("bale")),
     ))
+
     conn.commit()
+
 
 def build_report(snapshot, filtered_offers, reasons):
     best = best_available_offer(filtered_offers)
