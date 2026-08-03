@@ -17,20 +17,14 @@ notifications:
   sms:
     enabled: true
     provider: "melipayamak"
-
-    # Common
-    sender: "YOUR_MELIPAYAMAK_LINE"
-
-    # Kavenegar, اگر بعداً خواستی نگه داری
+    sender: ""
     api_key: ""
     receptor: ""
 
-    # Melipayamak
     melipayamak:
-      username: "YOUR_USERNAME"
-      password: "YOUR_PASSWORD"
-      recipients:
-        - "09xxxxxxxxx"
+      username: ""
+      password: ""
+      recipients: []
 
 
   bale:
