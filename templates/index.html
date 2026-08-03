@@ -4,46 +4,157 @@
   <meta charset="UTF-8">
   <title>Digikala Monitor</title>
   <style>
-    body { font-family: sans-serif; direction: rtl; margin: 30px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
-    th { background: #f3f3f3; }
-    .available { color: green; font-weight: bold; }
-    .unavailable { color: red; font-weight: bold; }
+    body {
+      font-family: sans-serif;
+      direction: rtl;
+      margin: 30px;
+      background: #fafafa;
+      color: #222;
+    }
+
+    h1 {
+      margin-bottom: 24px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #fff;
+    }
+
+    th,
+    td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: right;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f3f3f3;
+    }
+
+    a {
+      color: #0b6bcb;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .available {
+      color: green;
+      font-weight: bold;
+    }
+
+    .unavailable {
+      color: red;
+      font-weight: bold;
+    }
+
+    .muted {
+      color: #777;
+      font-size: 0.9em;
+    }
+
+    .price {
+      direction: ltr;
+      display: inline-block;
+    }
+
+    .empty {
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #ddd;
+    }
   </style>
 </head>
 <body>
   <h1>داشبورد پایش دیجیکالا</h1>
 
+  {% if products %}
   <table>
-    <tr>
-      <th>شناسه</th>
-      <th>نام</th>
-      <th>قیمت</th>
-      <th>فروشنده</th>
-      <th>وضعیت</th>
-      <th>آخرین بررسی</th>
-      <th>جزئیات</th>
-    </tr>
-    {% for p in products %}
-    <tr>
-      <td>{{ p["product_id"] }}</td>
-      <td>{{ p["title"] or p["custom_name"] }}</td>
-      <td>
-        {% if p["best_price_toman"] is not none %}
-          {{ "{:,.0f}".format(p["best_price_toman"]) }}
-        {% else %}
-          -
-        {% endif %}
-      </td>
-      <td>{{ p["best_seller_name"] or "-" }}</td>
-      <td class="{{ 'available' if p['is_available'] else 'unavailable' }}">
-        {{ "موجود" if p["is_available"] else "ناموجود" }}
-      </td>
-      <td>{{ p["checked_at"] or "-" }}</td>
-      <td><a href="/product/{{ p['product_id'] }}">نمایش</a></td>
-    </tr>
-    {% endfor %}
+    <thead>
+      <tr>
+        <th>شناسه</th>
+        <th>نام</th>
+        <th>قیمت فعلی</th>
+        <th>قیمت قبل از تخفیف</th>
+        <th>تخفیف</th>
+        <th>فروشنده</th>
+        <th>وضعیت</th>
+        <th>آخرین بررسی</th>
+        <th>جزئیات</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for p in products %}
+      <tr>
+        <td>{{ p["product_id"] }}</td>
+
+        <td>
+          <strong>{{ p["custom_name"] or p["title"] }}</strong>
+
+          {% if p["custom_name"] and p["title"] %}
+          <div class="muted">{{ p["title"] }}</div>
+          {% endif %}
+
+          {% if p["brand"] %}
+          <div class="muted">برند: {{ p["brand"] }}</div>
+          {% endif %}
+
+          {% if p["category"] %}
+          <div class="muted">دسته‌بندی: {{ p["category"] }}</div>
+          {% endif %}
+        </td>
+
+        <td>
+          {% if p["best_price_toman"] is not none %}
+            <span class="price">{{ "{:,.0f}".format(p["best_price_toman"]) }}</span>
+            تومان
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td>
+          {% if p["best_list_price_toman"] is not none %}
+            <span class="price">{{ "{:,.0f}".format(p["best_list_price_toman"]) }}</span>
+            تومان
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td>
+          {% if p["best_discount_percent"] is not none %}
+            {{ p["best_discount_percent"] }}٪
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
+        <td>{{ p["best_seller_name"] or "-" }}</td>
+
+        <td class="{{ 'available' if p['is_available'] else 'unavailable' }}">
+          {{ "موجود" if p["is_available"] else "ناموجود" }}
+        </td>
+
+        <td>{{ p["checked_at"] or "-" }}</td>
+
+        <td>
+          <a href="/product/{{ p['product_id'] }}">نمایش</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
   </table>
+  {% else %}
+    <div class="empty">
+      هنوز محصولی ثبت نشده است.
+    </div>
+  {% endif %}
 </body>
 </html>
