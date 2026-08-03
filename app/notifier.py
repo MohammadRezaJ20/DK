@@ -76,43 +76,109 @@ class Notifier:
             print(f"Bale notification failed: {exc}")
             return False
 
-    def send_sms(self, message: str) -> bool:
-        sms = self.config["notifications"]["sms"]
+def send_sms(self, message: str) -> bool:
+    sms_config = self.config["notifications"]["sms"]
 
-        if not sms["enabled"]:
-            return False
+    if not sms_config.get("enabled", False):
+        return False
 
-        provider = sms["provider"]
+    provider = sms_config.get("provider", "").lower()
+    sender = sms_config.get("sender", "")
 
+    try:
         if provider == "kavenegar":
-            api_key = sms["api_key"]
-            receptor = sms["receptor"]
-            sender = sms["sender"]
+            api_key = sms_config.get("api_key", "")
+            receptor = sms_config.get("receptor", "")
 
-            if not api_key or not receptor:
+            if not api_key or not receptor or not sender:
+                logger.error("Kavenegar SMS config is incomplete")
                 return False
 
-            try:
-                url = f"https://api.kavenegar.com/v1/{api_key}/sms/send.json"
-                payload = {
-                    "receptor": receptor,
-                    "sender": sender,
-                    "message": message[:450],
-                }
+            url = f"https://api.kavenegar.com/v1/{api_key}/sms/send.json"
+            payload = {
+                "receptor": receptor,
+                "sender": sender,
+                "message": message,
+            }
 
-                r = httpx.post(
-                    url,
-                    data=payload,
-                    timeout=20,
+            response = httpx.post(url, data=payload, timeout=10)
+            response.raise_for_status()
+            logger.info("Kavenegar SMS sent successfully to %s", receptor)
+            return True
+
+        if provider == "melipayamak":
+            melipayamak_config = sms_config.get("melipayamak", {})
+            username = melipayamak_config.get("username", "")
+            password = melipayamak_config.get("password", "")
+            recipients = melipayamak_config.get("recipients", [])
+
+            if isinstance(recipients, str):
+                recipients = [recipients]
+
+            recipients = [number for number in recipients if number]
+
+            if not username or not password or not sender or not recipients:
+                logger.error("Melipayamak SMS config is incomplete")
+                return False
+
+            url = "https://rest.melipayamak.com/api/send/simple"
+            payload = {
+                "username": username,
+                "password": password,
+                "from": sender,
+                "to": recipients,
+                "text": message,
+            }
+
+            response = httpx.post(url, json=payload, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            if data.get("RetStatus") == 1:
+                logger.info(
+                    "Melipayamak SMS sent successfully to %s. send_id=%s",
+                    recipients,
+                    data.get("Value"),
                 )
-                r.raise_for_status()
                 return True
 
-            except Exception as exc:
-                print(f"SMS notification failed: {exc}")
-                return False
+            logger.error(
+                "Melipayamak SMS failed. RetStatus=%s message=%s",
+                data.get("RetStatus"),
+                data.get("StrRetStatus"),
+            )
+            return False
 
+        logger.error("Unknown SMS provider: %s", provider)
         return False
+
+    except httpx.HTTPStatusError as exc:
+        logger.error(
+            "SMS HTTP error. provider=%s status=%s body=%s",
+            provider,
+            exc.response.status_code,
+            exc.response.text[:500],
+            exc_info=True,
+        )
+        return False
+
+    except httpx.RequestError as exc:
+        logger.error(
+            "SMS network error. provider=%s error=%s",
+            provider,
+            exc,
+            exc_info=True,
+        )
+        return False
+
+    except ValueError:
+        logger.exception("SMS provider returned invalid JSON. provider=%s", provider)
+        return False
+
+    except Exception:
+        logger.exception("SMS notification failed. provider=%s", provider)
+        return False
+
 
     def notify_all(self, message: str) -> dict:
         return {
