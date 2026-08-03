@@ -1,6 +1,36 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+def _coalesce(value, default):
+    return default if value is None else value
+
+
+def _as_int(value, default=0):
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_float(value, default=0.0):
+    if value is None or value == "":
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _unwrap_product_data(payload: dict) -> dict:
+    data = payload.get("data", payload)
+
+    if isinstance(data, dict) and isinstance(data.get("product"), dict):
+        return data["product"]
+
+    return data if isinstance(data, dict) else {}
+
 
 def get_connection(database_url: str):
     return psycopg2.connect(
