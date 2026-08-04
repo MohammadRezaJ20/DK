@@ -303,7 +303,6 @@ class Notifier:
             or "advanced"
         ).lower().strip()
 
-        # نام‌های جایگزین برای سازگاری با تنظیمات قبلی
         if mode in {
             "simple",
             "console-simple",
@@ -397,7 +396,6 @@ class Notifier:
 
         all_sent = True
 
-        # در endpoint ساده، مقدار to باید یک شماره باشد.
         for recipient in recipients:
             payload = {
                 "from": sender,
@@ -549,7 +547,6 @@ class Notifier:
 
         all_scheduled = True
 
-        # مطابق مستندات، در endpoint زمان‌دار to به‌صورت رشته است.
         for recipient in recipients:
             payload = {
                 "message": message,
@@ -803,15 +800,15 @@ class Notifier:
         expected: str,
     ) -> bool:
         """
-        موفقیت Console ملی‌پیامک بر اساس شناسه ارسال بررسی می‌شود:
+        Melipayamak Console success is checked based on send ID:
 
-        ساده، خدماتی و OTP:
+        Simple, Shared and OTP:
             {"recId": 123, "status": "..."}
 
-        پیشرفته:
+        Advanced:
             {"recIds": [123, 456], "status": "..."}
 
-        زمان‌دار:
+        Schedule:
             {"id": 2244, "status": "..."}
         """
 
@@ -851,10 +848,27 @@ class Notifier:
     # All notification channels
     # ------------------------------------------------------------------
 
-    def notify_all(self, message: str) -> dict:
+    def notify_all(
+        self,
+        full_message: str,
+        sms_message: str | None = None,
+    ) -> dict:
+        """
+        full_message:
+            Used for console, telegram and bale.
+            It can contain product URL and full report.
+
+        sms_message:
+            Used only for SMS.
+            It should be short and should not contain product URL.
+        """
+
+        if sms_message is None:
+            sms_message = full_message
+
         return {
-            "console": self.send_console(message),
-            "telegram": self.send_telegram(message),
-            "bale": self.send_bale(message),
-            "sms": self.send_sms(message),
+            "console": self.send_console(full_message),
+            "telegram": self.send_telegram(full_message),
+            "bale": self.send_bale(full_message),
+            "sms": self.send_sms(sms_message),
         }
