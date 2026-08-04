@@ -2,8 +2,19 @@ app:
   database_url: ""
   poll_interval_seconds: 900
   request_timeout_seconds: 20
+
+  # نام‌های قبلی - برای سازگاری حفظ شده‌اند
   min_delay_between_requests_seconds: 2
-  max_delay_between_requests_seconds: 7
+  max_delay_between_requests_seconds: 5
+
+  # نام‌های جدید - اگر جایی از پروژه استفاده شود
+  poll_delay_min_seconds: 2
+  poll_delay_max_seconds: 5
+
+
+# اگر endpoint کرون داری، این مقدار را در Render env هم می‌توانی ست کنی:
+# CRON_SECRET
+cron_secret: ""
 
 
 notifications:
@@ -31,11 +42,56 @@ notifications:
     # fallback گیرنده برای سازگاری با تنظیمات قبلی
     receptor: ""
 
+    # قالب اختصاصی پیامک
+    # نکته مهم:
+    # در قالب پیش‌فرض، لینک کالا وجود ندارد.
+    #
+    # Placeholder های قابل استفاده:
+    # {product_name}
+    # {custom_name}
+    # {title}
+    # {digikala_title}
+    # {product_id}
+    # {dkp}
+    # {availability}
+    # {status}
+    # {brand}
+    # {category}
+    # {best_seller}
+    # {best_price}
+    # {best_price_toman}
+    # {best_list_price}
+    # {best_list_price_toman}
+    # {discount}
+    # {discount_percent}
+    # {warranty}
+    # {lead_time}
+    # {seller_rating}
+    # {reasons}
+    # {reason_count}
+    #
+    # اگر واقعاً خواستی لینک را در SMS بگذاری:
+    # {url}
+    # ولی پیشنهاد نمی‌شود.
+    template: |
+      گزارش پایش دیجیکالا
+      کالا: {product_name}
+      شناسه: {product_id}
+      وضعیت: {availability}
+      قیمت: {best_price}
+      فروشنده: {best_seller}
+
+    # حداکثر تعداد دلیل‌هایی که در پیامک نمایش داده می‌شود
+    max_reasons: 3
+
     melipayamak:
       # token موجود در URL کنسول ملی‌پیامک
       #
       # مثال:
       # token: "b4b3616319254f30888d8d7dffc80f9d"
+      #
+      # بهتر است این مقدار را در Render Environment Variables قرار بدهی:
+      # MELIPAYAMAK_TOKEN
       token: "YOUR_REAL_TOKEN"
 
       # حالت‌های قابل استفاده:
@@ -50,6 +106,9 @@ notifications:
       # برای حالت advanced، چند گیرنده مجاز است.
       # برای حالت simple، schedule، shared و otp نیز
       # هر گیرنده به‌صورت جداگانه ارسال می‌شود.
+      #
+      # بهتر است روی Render این را با env بدهی:
+      # MELIPAYAMAK_RECIPIENTS=09204874731,09123456789
       recipients:
         - "09204874731"
 
@@ -61,7 +120,7 @@ notifications:
         date: "1/20/2023 15:22"
         period: 365
 
-      # فقط برای حالت shared
+      # فقط برای حالت shared / service
       body_id: null
       args: []
 
