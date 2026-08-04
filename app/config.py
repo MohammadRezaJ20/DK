@@ -43,14 +43,12 @@ FALSE_VALUES = {
 }
 
 
-DEFAULT_SMS_TEMPLATE = """اعلان دیجیکالا
+DEFAULT_SMS_TEMPLATE = """گزارش پایش دیجیکالا
 کالا: {product_name}
+شناسه: {product_id}
 وضعیت: {availability}
 قیمت: {best_price}
-فروشنده: {best_seller}
-دلایل:
-{reasons}"""
-
+فروشنده: {best_seller}"""
 
 def _env_bool(name: str, current_value: Any = False) -> bool:
     raw = os.getenv(name)
