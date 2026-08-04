@@ -5,36 +5,77 @@ app:
   min_delay_between_requests_seconds: 2
   max_delay_between_requests_seconds: 7
 
+
 notifications:
   console:
     enabled: true
+
 
   telegram:
     enabled: false
     bot_token: ""
     chat_id: ""
-    
+
+
   sms:
     enabled: true
     provider: "melipayamak"
-    sender: ""
+
+    # شماره خط ارسال ملی‌پیامک
+    sender: "5000xxx"
+
+    # امکان fallback برای token
+    # اگر melipayamak.token خالی باشد، از این مقدار استفاده می‌شود.
     api_key: ""
+
+    # fallback گیرنده برای سازگاری با تنظیمات قبلی
     receptor: ""
 
     melipayamak:
-      username: ""
-      password: ""
-      recipients: []
+      # token موجود در URL کنسول ملی‌پیامک
+      #
+      # مثال:
+      # token: "b4b3616319254f30888d8d7dffc80f9d"
+      token: ""
+
+      # حالت‌های قابل استفاده:
+      #
+      # advanced
+      # simple
+      # schedule
+      # shared
+      # otp
+      mode: "advanced"
+
+      # برای حالت advanced، چند گیرنده مجاز است.
+      # برای حالت simple، schedule، shared و otp نیز
+      # هر گیرنده به‌صورت جداگانه ارسال می‌شود.
+      recipients:
+        - "09204874731"
+
+      # فقط برای حالت advanced
+      udh: ""
+
+      # فقط برای حالت schedule
+      schedule:
+        date: "1/20/2023 15:22"
+        period: 365
+
+      # فقط برای حالت shared
+      body_id: null
+      args: []
 
 
   bale:
-    enabled: true
+    enabled: false
     bot_token: ""
     chat_id: ""
+
 
 web:
   host: "127.0.0.1"
   port: 8000
+
 
 defaults:
   conditions:
