@@ -36,7 +36,7 @@ notifications:
       #
       # مثال:
       # token: "b4b3616319254f30888d8d7dffc80f9d"
-      token: ""
+      token: "YOUR_REAL_TOKEN"
 
       # حالت‌های قابل استفاده:
       #
