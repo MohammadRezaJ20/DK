@@ -43,6 +43,15 @@ FALSE_VALUES = {
 }
 
 
+DEFAULT_SMS_TEMPLATE = """اعلان دیجیکالا
+کالا: {product_name}
+وضعیت: {availability}
+قیمت: {best_price}
+فروشنده: {best_seller}
+دلایل:
+{reasons}"""
+
+
 def _env_bool(name: str, current_value: Any = False) -> bool:
     raw = os.getenv(name)
 
@@ -212,34 +221,44 @@ def load_config(path: str | Path | None = None) -> dict:
         app_cfg.get("request_timeout_seconds", 20),
     )
 
+    # New names
     app_cfg["poll_delay_min_seconds"] = _env_float(
         "POLL_DELAY_MIN_SECONDS",
-        app_cfg.get("poll_delay_min_seconds", 2),
+        app_cfg.get(
+            "poll_delay_min_seconds",
+            app_cfg.get("min_delay_between_requests_seconds", 2),
+        ),
     )
 
     app_cfg["poll_delay_max_seconds"] = _env_float(
         "POLL_DELAY_MAX_SECONDS",
-        app_cfg.get("poll_delay_max_seconds", 5),
+        app_cfg.get(
+            "poll_delay_max_seconds",
+            app_cfg.get("max_delay_between_requests_seconds", 5),
+        ),
     )
 
-    # اگر در config.yaml از نام قبلی استفاده کرده باشید، حفظش می‌کنیم.
-    if "poll_interval_seconds" in app_cfg:
-        app_cfg["poll_interval_seconds"] = _env_int(
-            "POLL_INTERVAL_SECONDS",
-            app_cfg.get("poll_interval_seconds", 900),
-        )
+    # Old names compatibility
+    app_cfg["min_delay_between_requests_seconds"] = _env_float(
+        "MIN_DELAY_BETWEEN_REQUESTS_SECONDS",
+        app_cfg.get(
+            "min_delay_between_requests_seconds",
+            app_cfg.get("poll_delay_min_seconds", 2),
+        ),
+    )
 
-    if "min_delay_between_requests_seconds" in app_cfg:
-        app_cfg["min_delay_between_requests_seconds"] = _env_float(
-            "MIN_DELAY_BETWEEN_REQUESTS_SECONDS",
-            app_cfg.get("min_delay_between_requests_seconds", 2),
-        )
+    app_cfg["max_delay_between_requests_seconds"] = _env_float(
+        "MAX_DELAY_BETWEEN_REQUESTS_SECONDS",
+        app_cfg.get(
+            "max_delay_between_requests_seconds",
+            app_cfg.get("poll_delay_max_seconds", 7),
+        ),
+    )
 
-    if "max_delay_between_requests_seconds" in app_cfg:
-        app_cfg["max_delay_between_requests_seconds"] = _env_float(
-            "MAX_DELAY_BETWEEN_REQUESTS_SECONDS",
-            app_cfg.get("max_delay_between_requests_seconds", 7),
-        )
+    app_cfg["poll_interval_seconds"] = _env_int(
+        "POLL_INTERVAL_SECONDS",
+        app_cfg.get("poll_interval_seconds", 900),
+    )
 
     # ---------------------------------------------------------
     # Cron/API secret
@@ -316,7 +335,7 @@ def load_config(path: str | Path | None = None) -> dict:
         sms_config.get("sender", ""),
     )
 
-    # Kavenegar compatibility
+    # Kavenegar compatibility / Melipayamak token fallback
     sms_config["api_key"] = _env_str(
         "SMS_API_KEY",
         sms_config.get("api_key", ""),
@@ -326,6 +345,20 @@ def load_config(path: str | Path | None = None) -> dict:
         "SMS_RECEPTOR",
         sms_config.get("receptor", ""),
     )
+
+    # SMS custom content
+    sms_config["template"] = _env_str(
+        "SMS_TEMPLATE",
+        sms_config.get("template", DEFAULT_SMS_TEMPLATE),
+    )
+
+    sms_config["max_reasons"] = _env_int(
+        "SMS_MAX_REASONS",
+        sms_config.get("max_reasons", 3),
+    )
+
+    if sms_config["max_reasons"] < 0:
+        sms_config["max_reasons"] = 0
 
     # ---------------------------------------------------------
     # Melipayamak config - old REST compatibility
@@ -350,8 +383,8 @@ def load_config(path: str | Path | None = None) -> dict:
         melipayamak_config.get("token", ""),
     )
 
-    # اگر token داخل melipayamak نبود ولی SMS_API_KEY تنظیم شده بود،
-    # برای سازگاری می‌تواند به‌عنوان fallback استفاده شود.
+    # If melipayamak.token is empty but SMS_API_KEY exists,
+    # use SMS_API_KEY as fallback.
     if not melipayamak_config.get("token") and sms_config.get("api_key"):
         melipayamak_config["token"] = sms_config["api_key"]
 
@@ -399,8 +432,8 @@ def load_config(path: str | Path | None = None) -> dict:
         ),
     )
 
-    # برای سازگاری با کدهایی که date/period را مستقیم
-    # زیر melipayamak می‌خوانند.
+    # Compatibility with code that reads date/period directly
+    # under melipayamak.
     melipayamak_config["date"] = schedule_config["date"]
     melipayamak_config["period"] = schedule_config["period"]
 
@@ -423,7 +456,7 @@ def load_config(path: str | Path | None = None) -> dict:
         else:
             melipayamak_config["body_id"] = None
 
-    # برای سازگاری با payload رسمی که bodyId می‌خواهد.
+    # Compatibility with official payload that uses bodyId.
     melipayamak_config["bodyId"] = melipayamak_config["body_id"]
 
     args_env = os.getenv("MELIPAYAMAK_ARGS")
