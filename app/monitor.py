@@ -1,6 +1,7 @@
 import json
 import random
 import time
+from string import Formatter
 
 import httpx
 
@@ -9,7 +10,30 @@ from app.rules import evaluate_rules, filter_offers, best_available_offer
 from app.notifier import Notifier
 
 
-def upsert_product(conn, product_id, url, custom_name, title, brand, category, conditions_json):
+DEFAULT_SMS_TEMPLATE = """اعلان دیجیکالا
+کالا: {product_name}
+وضعیت: {availability}
+قیمت: {best_price}
+فروشنده: {best_seller}
+دلایل:
+{reasons}"""
+
+
+class SafeFormatDict(dict):
+    def __missing__(self, key):
+        return "نامشخص"
+
+
+def upsert_product(
+    conn,
+    product_id,
+    url,
+    custom_name,
+    title,
+    brand,
+    category,
+    conditions_json,
+):
     cur = conn.cursor()
     try:
         cur.execute("""
@@ -273,7 +297,62 @@ def insert_notification(conn, product_id, title, message, sent_result):
         cur.close()
 
 
-def build_report(snapshot, filtered_offers, reasons, custom_name=None):
+def _format_price_toman(value):
+    if value is None:
+        return "نامشخص"
+
+    try:
+        return f"{int(value):,} تومان"
+    except (TypeError, ValueError):
+        return "نامشخص"
+
+
+def _format_percent(value):
+    if value is None:
+        return "نامشخص"
+
+    return f"{value}%"
+
+
+def _product_availability_text(filtered_offers):
+    return "موجود" if any(bool(o.is_available) for o in filtered_offers) else "ناموجود"
+
+
+def _safe_format_template(template: str, values: dict) -> str:
+    """
+    Safe template formatting.
+    If template has unknown placeholders, they are replaced with 'نامشخص'.
+    If template is broken, fallback text is returned.
+    """
+
+    if not template:
+        template = DEFAULT_SMS_TEMPLATE
+
+    try:
+        formatter = Formatter()
+        used_keys = {
+            field_name
+            for _, field_name, _, _ in formatter.parse(template)
+            if field_name
+        }
+
+        safe_values = SafeFormatDict(values)
+
+        for key in used_keys:
+            safe_values.setdefault(key, "نامشخص")
+
+        return template.format_map(safe_values).strip()
+
+    except Exception:
+        return DEFAULT_SMS_TEMPLATE.format_map(SafeFormatDict(values)).strip()
+
+
+def _build_full_report_message(
+    snapshot,
+    filtered_offers,
+    reasons,
+    custom_name=None,
+):
     best = best_available_offer(filtered_offers)
 
     display_title = custom_name or snapshot.title or f"DKP-{snapshot.product_id}"
@@ -284,26 +363,31 @@ def build_report(snapshot, filtered_offers, reasons, custom_name=None):
         f"عنوان دیجیکالا: {snapshot.title or 'نامشخص'}",
         f"شناسه: {snapshot.product_id}",
         f"لینک: {snapshot.url}",
-        f"وضعیت: {'موجود' if any(o.is_available for o in filtered_offers) else 'ناموجود'}",
+        f"وضعیت: {_product_availability_text(filtered_offers)}",
         f"برند: {snapshot.brand or 'نامشخص'}",
         f"دسته‌بندی: {snapshot.category or 'نامشخص'}",
         "",
         "دلایل اعلان:",
     ]
 
-    lines.extend(f"- {r}" for r in reasons)
+    if reasons:
+        lines.extend(f"- {r}" for r in reasons)
+    else:
+        lines.append("- نامشخص")
 
     if best:
         lines.extend([
             "",
             "بهترین پیشنهاد:",
             f"- فروشنده: {best.seller_name or 'نامشخص'}",
-            f"- قیمت فروش: {best.price_toman:,} تومان" if best.price_toman is not None else "- قیمت فروش: نامشخص",
-            f"- قیمت قبل از تخفیف: {best.list_price_toman:,} تومان" if best.list_price_toman is not None else "- قیمت قبل از تخفیف: نامشخص",
-            f"- تخفیف: {best.discount_percent}%" if best.discount_percent is not None else "- تخفیف: نامشخص",
+            f"- قیمت فروش: {_format_price_toman(best.price_toman)}",
+            f"- قیمت قبل از تخفیف: {_format_price_toman(best.list_price_toman)}",
+            f"- تخفیف: {_format_percent(best.discount_percent)}",
             f"- گارانتی: {best.warranty_name or 'نامشخص'}",
             f"- ارسال: {best.lead_time or 'نامشخص'}",
-            f"- امتیاز فروشنده: {best.seller_rating}" if best.seller_rating is not None else "- امتیاز فروشنده: نامشخص",
+            f"- امتیاز فروشنده: {best.seller_rating}"
+            if best.seller_rating is not None
+            else "- امتیاز فروشنده: نامشخص",
         ])
 
     lines.extend(["", "همه فروشنده‌ها:"])
@@ -316,21 +400,118 @@ def build_report(snapshot, filtered_offers, reasons, custom_name=None):
         )
     )
 
-    for o in sorted_offers:
-        price_text = f"{o.price_toman:,} تومان" if o.price_toman is not None else "قیمت نامشخص"
-        list_price_text = f"{o.list_price_toman:,} تومان" if o.list_price_toman is not None else "نامشخص"
-        discount_text = f"{o.discount_percent}%" if o.discount_percent is not None else "نامشخص"
-
-        lines.append(
-            f"- {o.seller_name or 'نامشخص'} | "
-            f"{'موجود' if o.is_available else 'ناموجود'} | "
-            f"قیمت: {price_text} | "
-            f"قیمت قبل: {list_price_text} | "
-            f"تخفیف: {discount_text} | "
-            f"گارانتی: {o.warranty_name or 'نامشخص'}"
-        )
+    if not sorted_offers:
+        lines.append("- فروشنده‌ای یافت نشد")
+    else:
+        for offer in sorted_offers:
+            lines.append(
+                f"- {offer.seller_name or 'نامشخص'} | "
+                f"{'موجود' if offer.is_available else 'ناموجود'} | "
+                f"قیمت: {_format_price_toman(offer.price_toman)} | "
+                f"قیمت قبل: {_format_price_toman(offer.list_price_toman)} | "
+                f"تخفیف: {_format_percent(offer.discount_percent)} | "
+                f"گارانتی: {offer.warranty_name or 'نامشخص'}"
+            )
 
     return "\n".join(lines)
+
+
+def _build_sms_message(
+    config,
+    snapshot,
+    filtered_offers,
+    reasons,
+    custom_name=None,
+):
+    sms_config = (
+        (config or {})
+        .get("notifications", {})
+        .get("sms", {})
+        or {}
+    )
+
+    template = sms_config.get("template") or DEFAULT_SMS_TEMPLATE
+
+    try:
+        max_reasons = int(sms_config.get("max_reasons", 3))
+    except (TypeError, ValueError):
+        max_reasons = 3
+
+    if max_reasons < 0:
+        max_reasons = 0
+
+    best = best_available_offer(filtered_offers)
+
+    display_title = custom_name or snapshot.title or f"DKP-{snapshot.product_id}"
+
+    selected_reasons = list(reasons or [])
+
+    if max_reasons == 0:
+        selected_reasons = []
+    else:
+        selected_reasons = selected_reasons[:max_reasons]
+
+    if selected_reasons:
+        reasons_text = "\n".join(f"- {reason}" for reason in selected_reasons)
+    else:
+        reasons_text = "- اعلان جدید"
+
+    values = {
+        # Main aliases
+        "product_name": display_title,
+        "custom_name": custom_name or "",
+        "title": snapshot.title or "نامشخص",
+        "digikala_title": snapshot.title or "نامشخص",
+        "product_id": snapshot.product_id,
+        "dkp": snapshot.product_id,
+
+        # Important: URL exists for compatibility,
+        # but default SMS template does not use it.
+        "url": snapshot.url or "",
+
+        "availability": _product_availability_text(filtered_offers),
+        "status": snapshot.status or "unknown",
+        "brand": snapshot.brand or "نامشخص",
+        "category": snapshot.category or "نامشخص",
+
+        "best_seller": best.seller_name if best and best.seller_name else "نامشخص",
+        "best_price": _format_price_toman(best.price_toman if best else None),
+        "best_price_toman": best.price_toman if best and best.price_toman is not None else "",
+        "best_list_price": _format_price_toman(best.list_price_toman if best else None),
+        "best_list_price_toman": (
+            best.list_price_toman
+            if best and best.list_price_toman is not None
+            else ""
+        ),
+        "discount": _format_percent(best.discount_percent if best else None),
+        "discount_percent": (
+            best.discount_percent
+            if best and best.discount_percent is not None
+            else ""
+        ),
+        "warranty": best.warranty_name if best and best.warranty_name else "نامشخص",
+        "lead_time": best.lead_time if best and best.lead_time else "نامشخص",
+        "seller_rating": (
+            best.seller_rating
+            if best and best.seller_rating is not None
+            else "نامشخص"
+        ),
+
+        "reasons": reasons_text,
+        "reason_count": len(reasons or []),
+    }
+
+    return _safe_format_template(template, values)
+
+
+# Backward-compatible old function name.
+def build_report(snapshot, filtered_offers, reasons, custom_name=None):
+    return _build_full_report_message(
+        snapshot=snapshot,
+        filtered_offers=filtered_offers,
+        reasons=reasons,
+        custom_name=custom_name,
+    )
 
 
 def monitor_once(conn, config):
@@ -339,8 +520,16 @@ def monitor_once(conn, config):
 
     settings = config.get("app", {})
     timeout = settings.get("request_timeout_seconds", 20)
-    min_delay = settings.get("min_delay_between_requests_seconds", 1)
-    max_delay = settings.get("max_delay_between_requests_seconds", 3)
+
+    min_delay = settings.get(
+        "min_delay_between_requests_seconds",
+        settings.get("poll_delay_min_seconds", 1),
+    )
+
+    max_delay = settings.get(
+        "max_delay_between_requests_seconds",
+        settings.get("poll_delay_max_seconds", 3),
+    )
 
     if min_delay > max_delay:
         min_delay, max_delay = max_delay, min_delay
@@ -351,7 +540,10 @@ def monitor_once(conn, config):
             url = row["url"]
             custom_name = row.get("custom_name")
 
-            conditions = safe_json_loads(row.get("conditions_json"), default={})
+            conditions = safe_json_loads(
+                row.get("conditions_json"),
+                default={},
+            )
 
             time.sleep(random.uniform(min_delay, max_delay))
 
@@ -379,24 +571,40 @@ def monitor_once(conn, config):
                     title=snapshot.title,
                     brand=snapshot.brand,
                     category=snapshot.category,
-                    conditions_json=json.dumps(conditions, ensure_ascii=False),
+                    conditions_json=json.dumps(
+                        conditions,
+                        ensure_ascii=False,
+                    ),
                 )
 
                 insert_snapshot(conn, snapshot, filtered_offers)
 
                 if reasons:
-                    report = build_report(
+                    full_message = _build_full_report_message(
                         snapshot=snapshot,
                         filtered_offers=filtered_offers,
                         reasons=reasons,
                         custom_name=custom_name,
                     )
-                    sent = notifier.notify_all(report)
+
+                    sms_message = _build_sms_message(
+                        config=config,
+                        snapshot=snapshot,
+                        filtered_offers=filtered_offers,
+                        reasons=reasons,
+                        custom_name=custom_name,
+                    )
+
+                    sent = notifier.notify_all(
+                        full_message=full_message,
+                        sms_message=sms_message,
+                    )
+
                     insert_notification(
                         conn=conn,
                         product_id=product_id,
                         title=custom_name or snapshot.title,
-                        message=report,
+                        message=full_message,
                         sent_result=sent,
                     )
 
